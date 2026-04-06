@@ -12,7 +12,7 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 @app.before_request
 def log_request_info():
-    print(f"📡 INCOMING REQUEST: {request.method} {request.path} from {request.remote_addr}")
+    print(f"INCOMING REQUEST: {request.method} {request.path} from {request.remote_addr}")
 
 # --- EMAIL CONFIGURATION (SMTP) ---
 # Replace with your actual Gmail App Password to enable live sending!
@@ -177,7 +177,7 @@ def home():
 
 @app.route('/api/services', methods=['GET'])
 def get_services():
-    print(f"📦 FETCHING SERVICES (SENT TO MOBILE): {len(SERVICES)} items")
+    print(f"FETCHING SERVICES (SENT TO MOBILE): {len(SERVICES)} items")
     return jsonify(SERVICES)
 
 # --- CONTACT FORM API (WITH MONGODB PERSISTENCE) ---
