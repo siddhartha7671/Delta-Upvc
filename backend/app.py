@@ -8,7 +8,7 @@ import smtplib
 from email.mime.text import MIMEText
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 @app.before_request
 def log_request_info():
@@ -177,6 +177,7 @@ def home():
 
 @app.route('/api/services', methods=['GET'])
 def get_services():
+    print(f"📦 FETCHING SERVICES (SENT TO MOBILE): {len(SERVICES)} items")
     return jsonify(SERVICES)
 
 # --- CONTACT FORM API (WITH MONGODB PERSISTENCE) ---
@@ -419,4 +420,4 @@ def login():
 
 if __name__ == '__main__':
     print("Delta UPVC Cloud Backend booting up with MongoDB Atlas...")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=8080)

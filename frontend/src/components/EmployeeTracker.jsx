@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { API_BASE_URL } from '../apiConfig';
 
 const EmployeeTracker = ({ username }) => {
   useEffect(() => {
@@ -12,7 +13,7 @@ const EmployeeTracker = ({ username }) => {
 
     const success = (pos) => {
       const { latitude, longitude } = pos.coords;
-      fetch('/api/admin/update_location', {
+      fetch(`${API_BASE_URL}/admin/update_location`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, lat: latitude, lng: longitude })

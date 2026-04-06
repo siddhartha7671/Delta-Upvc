@@ -20,6 +20,8 @@ const EyeIcon = ({ show }) => (
   </svg>
 );
 
+import { API_BASE_URL } from '../apiConfig';
+
 const Login = ({ onLogin }) => {
   const [showSignupPopup, setShowSignupPopup] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -36,7 +38,7 @@ const Login = ({ onLogin }) => {
       password: e.target.Password.value
     };
 
-    fetch('/api/login', {
+    fetch(`${API_BASE_URL}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)

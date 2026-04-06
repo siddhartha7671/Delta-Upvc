@@ -11,6 +11,8 @@ const WindowIcon = ({ size = 24, className }) => (
   </svg>
 );
 
+import { API_BASE_URL } from '../apiConfig';
+
 const ContactFormPage = ({ onBack, onPortalNav }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -20,7 +22,7 @@ const ContactFormPage = ({ onBack, onPortalNav }) => {
       email: e.target.email.value,
       interest: "Contact Page Inquiry"
     };
-    fetch('/api/contact', {
+    fetch(`${API_BASE_URL}/contact`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(data)

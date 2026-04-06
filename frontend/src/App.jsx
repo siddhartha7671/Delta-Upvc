@@ -73,6 +73,8 @@ const ProductDetail = ({ product, onBack, onPortalNav, onContactNav }) => {
   );
 };
 
+import { API_BASE_URL } from './apiConfig';
+
 function App() {
   const [activeProduct, setActiveProduct] = useState(null);
   const [showLoader, setShowLoader] = useState(false);
@@ -88,7 +90,7 @@ function App() {
   ]);
 
   useEffect(() => {
-    fetch('/api/services')
+    fetch(`${API_BASE_URL}/services`)
       .then(res => res.json())
       .then(data => { if (data.length > 0) setServices(data); })
       .catch(err => console.log("Backend offline, using fallback data."));

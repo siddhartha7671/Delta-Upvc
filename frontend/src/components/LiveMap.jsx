@@ -1,5 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
-import styled from 'styled-components';
+import { API_BASE_URL } from '../apiConfig';
 
 const LiveMap = ({ onBack }) => {
   const mapRef = useRef(null);
@@ -28,7 +27,7 @@ const LiveMap = ({ onBack }) => {
   }, []);
 
   const fetchLocations = () => {
-    fetch('/api/admin/locations')
+    fetch(`${API_BASE_URL}/admin/locations`)
       .then(r => r.json())
       .then(data => setLocations(data || []))
       .catch(err => console.error("Map Fetch Error:", err));

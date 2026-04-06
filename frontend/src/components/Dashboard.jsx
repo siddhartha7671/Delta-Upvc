@@ -78,6 +78,8 @@ const ToastPopup = ({ title, message, onClose }) => {
   );
 };
 
+import { API_BASE_URL } from '../apiConfig';
+
 const Dashboard = ({ user, onLogout, onHomeNav }) => {
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
@@ -140,8 +142,8 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
   useEffect(() => fetchData(), [user.role]);
 
   const fetchData = () => {
-    fetch('/api/admin/tasks').then(r => r.json()).then(data => setTasks(data || []));
-    fetch('/api/admin/users').then(r => r.json()).then(data => setUsers(data || []));
+    fetch(`${API_BASE_URL}/admin/tasks`).then(r => r.json()).then(data => setTasks(data || []));
+    fetch(`${API_BASE_URL}/admin/users`).then(r => r.json()).then(data => setUsers(data || []));
   };
   
   const fetchUserPoints = (uname) => {
@@ -184,7 +186,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
   
   const handleAddUser = (e) => {
     e.preventDefault();
-    fetch('/api/admin/add_user', {
+    fetch(`${API_BASE_URL}/admin/add_user`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newName, phone: newPhone, email: newEmail, username: newUsername, password: newPassword, role: newRole, gender: newGender, dob: newDob, profile_pic: newProfilePic })
@@ -197,7 +199,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
   const handleAddSiteLog = (e) => {
     e.preventDefault();
     const isEdit = !!editingTask;
-    const url = isEdit ? '/api/admin/edit_task' : '/api/admin/add_task';
+    const url = isEdit ? `${API_BASE_URL}/admin/edit_task` : `${API_BASE_URL}/admin/add_task`;
     const bodyData = { 
       task: siteDesc, 
       deadline: `${siteName} - ${sitePhone}`, 
@@ -238,7 +240,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
 
   const confirmDelete = () => {
     if (!itemToDelete) return;
-    fetch('/api/admin/delete_task', {
+    fetch(`${API_BASE_URL}/admin/delete_task`, {
        method: 'DELETE',
        headers: { 'Content-Type': 'application/json' },
        body: JSON.stringify({ task_id: itemToDelete })
@@ -250,7 +252,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
   };
 
   const handleUpdateTaskStatus = (taskId, newStatus) => {
-    fetch('/api/admin/update_task_status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task_id: taskId, status: newStatus })
+    fetch(`${API_BASE_URL}/admin/update_task_status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task_id: taskId, status: newStatus })
     }).then(r => r.json()).then(res => { if(res.status === 'success') fetchData(); });
   };
 
@@ -268,7 +270,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
 
   const handleUpdateUser = (e) => {
     e.preventDefault();
-    fetch('/api/admin/add_user', {
+    fetch(`${API_BASE_URL}/admin/add_user`, {
        method: 'POST', headers: { 'Content-Type': 'application/json' },
        body: JSON.stringify({ name: newName, phone: newPhone, email: newEmail, username: newUsername, password: newPassword, role: newRole, isUpdate: true, gender: newGender, dob: newDob, profile_pic: newProfilePic })
     }).then(r => r.json()).then(res => { showToast("done successfully :)", res.message); setShowEditModal(false); fetchData(); });
