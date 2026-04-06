@@ -3,11 +3,25 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from pymongo import MongoClient
 from bson import ObjectId
+import logging
+from logging.handlers import RotatingFileHandler
 import os
 import smtplib
 from email.mime.text import MIMEText
 
+# --- LOGGING CONFIGURATION (FILE-BASED) ---
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+
+logging.basicConfig(level=logging.INFO)
+file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=10)
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+))
+file_handler.setLevel(logging.INFO)
+
 app = Flask(__name__)
+app.logger.addHandler(file_handler)
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 @app.before_request
@@ -64,6 +78,20 @@ tasks_collection = db['tasks']
 admins_collection = db['admins']
 login_logs = db['login_logs'] # To store login history
 contacts_collection = db['contacts']
+system_logs = db['system_logs'] # For critical operational events
+
+def log_system_event(event_type, message, user_identity="SYSTEM"):
+    """Centralized logger for database-backed activity history"""
+    try:
+        system_logs.insert_one({
+            "event": event_type,
+            "message": message,
+            "user": user_identity,
+            "timestamp": datetime.datetime.now()
+        })
+        app.logger.info(f"[{event_type}] {message} (User: {user_identity})")
+    except Exception as e:
+        app.logger.error(f"LOGGING ERROR: {e}")
 
 @app.route('/api/admin/add_task', methods=['POST'])
 def add_task():
@@ -78,7 +106,7 @@ def add_task():
         return jsonify({"message": "Task and Assignee are required"}), 400
         
     try:
-        tasks_collection.insert_one({
+        res = tasks_collection.insert_one({
             "task": task_name,
             "assignee": assignee,
             "deadline": deadline,
@@ -86,8 +114,10 @@ def add_task():
             "status": status,
             "created_at": datetime.datetime.now()
         })
+        log_system_event("TASK_CREATE", f"New task '{task_name}' assigned to @{assignee}", user_identity=assignee)
         return jsonify({"message": f"Successfully logged site visit by @{assignee}!", "status": "success"})
     except Exception as e:
+        app.logger.error(f"TASK ERROR: {e}")
         return jsonify({"message": str(e)}), 500
 
 # INITIALIZE ADMIN DATA (IF MISSING)
@@ -129,9 +159,11 @@ def delete_user():
     try:
         res = admins_collection.delete_one({"username": username})
         if res.deleted_count > 0:
+            log_system_event("USER_DELETE", f"Admin/Employe '{username}' was permanently removed from the system.")
             return jsonify({"message": f"Successfully removed {username} from team.", "status": "success"})
         return jsonify({"message": "User not found.", "status": "error"}), 404
     except Exception as e:
+        app.logger.error(f"DELETE ERROR: {e}")
         return jsonify({"message": str(e)}), 500
 
 # DYNAMIC SERVICES DATA
@@ -234,8 +266,10 @@ def update_task_status():
         return jsonify({"message": "Missing info"}), 400
     try:
         tasks_collection.update_one({"_id": ObjectId(task_id)}, {"$set": {"status": new_status}})
+        log_system_event("TASK_STATUS_CHANGE", f"Task {task_id} status updated to '{new_status}'")
         return jsonify({"message": "Status updated successfully", "status": "success"})
     except Exception as e:
+        app.logger.error(f"STATUS UPDATE ERROR: {e}")
         return jsonify({"message": str(e)}), 500
 
 @app.route('/api/admin/delete_task', methods=['DELETE'])
@@ -271,10 +305,19 @@ def edit_task():
 
 @app.route('/api/admin/logs', methods=['GET'])
 def get_logs():
+    """Returns both Login history and System activity logs"""
     try:
-        logs = list(login_logs.find({}, {'_id': 0}).sort("login_time", -1))
-        return jsonify(logs)
+        # Get login history
+        logins = list(login_logs.find({}, {'_id': 0}).sort("login_time", -1).limit(50))
+        # Get system events
+        events = list(system_logs.find({}, {'_id': 0}).sort("timestamp", -1).limit(50))
+        
+        return jsonify({
+            "logins": logins,
+            "system_activity": events
+        })
     except Exception as e:
+        app.logger.error(f"LOG FETCH ERROR: {e}")
         return jsonify({"message": str(e)}), 500
 
 @app.route('/api/admin/users', methods=['GET'])
@@ -310,6 +353,7 @@ def add_user():
             if password and len(password.strip()) > 0:
                 update_data["password"] = password
             admins_collection.update_one({"username": username}, {"$set": update_data})
+            log_system_event("USER_UPDATE", f"Profile for {username} was updated by admin.")
             return jsonify({"message": f"Profile for {username} updated successfully!", "status": "success"})
             
         # 2. CREATE MODE
@@ -325,6 +369,7 @@ def add_user():
             "gender": gender, "dob": dob, "profile_pic": profile_pic,
             "created_at": datetime.datetime.now()
         })
+        log_system_event("USER_CREATE", f"New user '{username}' ({role}) registered in system.")
 
         # Send automatic email
         email_sent = send_onboarding_email(email, name, username, password)
@@ -364,28 +409,6 @@ def get_locations():
             {"_id": 0, "username": 1, "name": 1, "location": 1, "last_seen": 1, "role": 1, "profile_pic": 1}
         ))
         return jsonify(users)
-    except Exception as e:
-        return jsonify({"message": str(e)}), 500
-            
-        # 2. CREATE MODE
-        if not name or not username or not password:
-            return jsonify({"message": "Name, Username, and password are required"}), 400
-            
-        if admins_collection.find_one({"username": username}):
-            return jsonify({"message": "Username already exists"}), 400
-            
-        admins_collection.insert_one({
-            "name": name, "phone": phone, "email": email,
-            "username": username, "password": password, "role": role,
-            "gender": gender, "dob": dob, "profile_pic": profile_pic,
-            "created_at": datetime.datetime.now()
-        })
-
-        # Send automatic email
-        email_sent = send_onboarding_email(email, name, username, password)
-        status_msg = f"Successfully added {name}! Credentials sent to {email}." if email_sent else f"Successfully added {name}!"
-        
-        return jsonify({"message": status_msg, "status": "success", "email_notification": email_sent})
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
