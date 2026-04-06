@@ -10,6 +10,10 @@ from email.mime.text import MIMEText
 app = Flask(__name__)
 CORS(app)
 
+@app.before_request
+def log_request_info():
+    print(f"📡 INCOMING REQUEST: {request.method} {request.path} from {request.remote_addr}")
+
 # --- EMAIL CONFIGURATION (SMTP) ---
 # Replace with your actual Gmail App Password to enable live sending!
 SENDER_EMAIL = "deltaupvc2025@gmail.com"
