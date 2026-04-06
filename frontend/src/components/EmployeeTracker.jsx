@@ -12,7 +12,7 @@ const EmployeeTracker = ({ username }) => {
 
     const success = (pos) => {
       const { latitude, longitude } = pos.coords;
-      fetch('http://localhost:5000/api/admin/update_location', {
+      fetch('/api/admin/update_location', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, lat: latitude, lng: longitude })

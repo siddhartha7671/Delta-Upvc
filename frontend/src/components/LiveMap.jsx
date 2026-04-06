@@ -28,7 +28,7 @@ const LiveMap = ({ onBack }) => {
   }, []);
 
   const fetchLocations = () => {
-    fetch('http://localhost:5000/api/admin/locations')
+    fetch('/api/admin/locations')
       .then(r => r.json())
       .then(data => setLocations(data || []))
       .catch(err => console.error("Map Fetch Error:", err));

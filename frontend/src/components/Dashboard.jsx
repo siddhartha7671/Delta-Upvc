@@ -20,7 +20,7 @@ const StaffTracker = () => {
    const [locations, setLocations] = useState([]);
    
    useEffect(() => {
-       fetch('http://localhost:5000/api/admin/locations')
+       fetch('/api/admin/locations')
          .then(r => r.json())
          .then(data => setLocations(data || []));
    }, []);
@@ -140,8 +140,8 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
   useEffect(() => fetchData(), [user.role]);
 
   const fetchData = () => {
-    fetch('http://localhost:5000/api/admin/tasks').then(r => r.json()).then(data => setTasks(data || []));
-    fetch('http://localhost:5000/api/admin/users').then(r => r.json()).then(data => setUsers(data || []));
+    fetch('/api/admin/tasks').then(r => r.json()).then(data => setTasks(data || []));
+    fetch('/api/admin/users').then(r => r.json()).then(data => setUsers(data || []));
   };
   
   const fetchUserPoints = (uname) => {
@@ -184,7 +184,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
   
   const handleAddUser = (e) => {
     e.preventDefault();
-    fetch('http://localhost:5000/api/admin/add_user', {
+    fetch('/api/admin/add_user', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newName, phone: newPhone, email: newEmail, username: newUsername, password: newPassword, role: newRole, gender: newGender, dob: newDob, profile_pic: newProfilePic })
@@ -197,7 +197,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
   const handleAddSiteLog = (e) => {
     e.preventDefault();
     const isEdit = !!editingTask;
-    const url = isEdit ? 'http://localhost:5000/api/admin/edit_task' : 'http://localhost:5000/api/admin/add_task';
+    const url = isEdit ? '/api/admin/edit_task' : '/api/admin/add_task';
     const bodyData = { 
       task: siteDesc, 
       deadline: `${siteName} - ${sitePhone}`, 
@@ -238,7 +238,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
 
   const confirmDelete = () => {
     if (!itemToDelete) return;
-    fetch('http://localhost:5000/api/admin/delete_task', {
+    fetch('/api/admin/delete_task', {
        method: 'DELETE',
        headers: { 'Content-Type': 'application/json' },
        body: JSON.stringify({ task_id: itemToDelete })
@@ -250,7 +250,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
   };
 
   const handleUpdateTaskStatus = (taskId, newStatus) => {
-    fetch('http://localhost:5000/api/admin/update_task_status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task_id: taskId, status: newStatus })
+    fetch('/api/admin/update_task_status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task_id: taskId, status: newStatus })
     }).then(r => r.json()).then(res => { if(res.status === 'success') fetchData(); });
   };
 
@@ -268,7 +268,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
 
   const handleUpdateUser = (e) => {
     e.preventDefault();
-    fetch('http://localhost:5000/api/admin/add_user', {
+    fetch('/api/admin/add_user', {
        method: 'POST', headers: { 'Content-Type': 'application/json' },
        body: JSON.stringify({ name: newName, phone: newPhone, email: newEmail, username: newUsername, password: newPassword, role: newRole, isUpdate: true, gender: newGender, dob: newDob, profile_pic: newProfilePic })
     }).then(r => r.json()).then(res => { showToast("done successfully :)", res.message); setShowEditModal(false); fetchData(); });
@@ -479,7 +479,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
       const [locations, setLocations] = useState([]);
       
       useEffect(() => {
-          fetch('http://localhost:5000/api/admin/locations')
+          fetch('/api/admin/locations')
             .then(r => r.json())
             .then(data => setLocations(data || []));
       }, []);

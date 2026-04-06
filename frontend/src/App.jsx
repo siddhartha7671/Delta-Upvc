@@ -88,7 +88,7 @@ function App() {
   ]);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/services')
+    fetch('/api/services')
       .then(res => res.json())
       .then(data => { if (data.length > 0) setServices(data); })
       .catch(err => console.log("Backend offline, using fallback data."));
