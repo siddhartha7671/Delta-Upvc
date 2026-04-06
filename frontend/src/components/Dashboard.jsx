@@ -20,7 +20,7 @@ const StaffTracker = () => {
    const [locations, setLocations] = useState([]);
    
    useEffect(() => {
-       fetch('/api/admin/locations')
+       fetch(`${API_BASE_URL}/admin/locations`)
          .then(r => r.json())
          .then(data => setLocations(data || []));
    }, []);
@@ -481,7 +481,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
       const [locations, setLocations] = useState([]);
       
       useEffect(() => {
-          fetch('/api/admin/locations')
+          fetch(`${API_BASE_URL}/admin/locations`)
             .then(r => r.json())
             .then(data => setLocations(data || []));
       }, []);
@@ -521,10 +521,10 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
       
       {/* SIDEBAR */}
       <Sidebar>
-        <div className="logo-section">
-           <img src="/company_logo.jpg" alt="Delta UPVC" className="company-logo" style={{width:'40px', height:'40px', borderRadius:'8px', marginBottom:'1rem'}} />
-           <h2 className="logo-text">Delta</h2>
-           <span className="logo-subtitle">UPVC Windows</span>
+        <div className="logo-section" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2rem' }}>
+           <img src="/company_logo.jpg" alt="Delta UPVC" className="company-logo" style={{ height: '60px', width: 'auto', marginBottom: '1rem' }} />
+           <h2 className="logo-text" style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, letterSpacing: '1px' }}>DELTA UPVC</h2>
+           <span className="logo-subtitle" style={{ fontSize: '0.8rem', opacity: 0.8, letterSpacing: '2px' }}>WINDOWS</span>
         </div>
         
         <div className="nav-group">
@@ -532,7 +532,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
               Overview
            </div>
-           {(user.role === 'CEO' || user.role === 'Manager') && (
+           {user.role === 'Manager' && (
               <div className={`nav-item ${currentView === 'Tracker' ? 'active' : ''}`} onClick={() => { setCurrentView('Tracker'); setFocusedTask(null); }}>
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                  Staff Tracker

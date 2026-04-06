@@ -96,9 +96,9 @@ const Login = ({ onLogin }) => {
           </div>
 
           <div className="logo-container">
-            <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <img src="/company_logo.jpg" alt="Delta Logo" style={{ height: '50px', width: 'auto', borderRadius: '8px' }} />
-              <span style={{ fontSize: '1.5rem', fontWeight: 800 }}>Delta UPVC</span>
+            <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+              <img src="/company_logo.jpg" alt="Delta Logo" style={{ height: '60px', width: 'auto' }} />
+              <span style={{ fontSize: '1.8rem', fontWeight: 800, letterSpacing: '2px', color: 'white' }}>DELTA UPVC WINDOWS</span>
             </div>
           </div>
           <h1>Welcome to Delta UPVC Portal</h1>
