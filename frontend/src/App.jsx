@@ -285,6 +285,18 @@ function App() {
   ]);
 
   useEffect(() => {
+    // 1. Persistent Session Restore
+    const savedSession = localStorage.getItem('deltaUserSession');
+    if (savedSession) {
+      setActiveUser(JSON.parse(savedSession));
+    }
+
+    // 2. Mobile Detection & Policy (Auto-Redirect to Portal)
+    const isMobile = window.innerWidth <= 768; // Standard Mobile/Tablet breakpoint
+    if (isMobile && !savedSession) {
+      setShowPortal(true);
+    }
+
     fetch(`${API_BASE_URL}/services`)
       .then(res => res.json())
       .then(data => { 
@@ -326,11 +338,15 @@ function App() {
   };
 
   const handleLoginSuccess = (userData) => {
+    // Persist session to local storage for infinite login
+    localStorage.setItem('deltaUserSession', JSON.stringify(userData));
     setActiveUser(userData);
     setShowPortal(false);
   };
 
   const handleLogout = () => {
+    // Clear persistent session
+    localStorage.removeItem('deltaUserSession');
     setActiveUser(null);
     setShowPortal(true);
     window.scrollTo(0, 0);

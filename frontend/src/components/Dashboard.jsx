@@ -145,7 +145,40 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
    const [submissionDate, setSubmissionDate] = useState('');
    const [taskCreatedDate, setTaskCreatedDate] = useState('');
 
+   useEffect(() => {
+      // 15-Minute Automatic Route Tracker (Active during clock-in)
+      const shouldTrack = user.attendance_status === 'online' && user.role === 'Employe';
+      let intervalId = null;
+
+      const pushTrace = () => {
+         if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(pos => {
+               const { latitude, longitude } = pos.coords;
+               if (!user.username) return;
+               fetch(`${API_BASE_URL}/admin/attendance_trace`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                     username: user.admin || user.username, 
+                     lat: latitude, 
+                     lng: longitude 
+                  })
+               }).catch(() => {});
+            });
+         }
+      };
+
+      if (shouldTrack) {
+         pushTrace(); // Initial signal on clock-in
+         intervalId = setInterval(pushTrace, 900000); // Pulse every 15 mins
+      }
+
+      return () => { if(intervalId) clearInterval(intervalId); };
+   }, [user.attendance_status]);
+
    const [toast, setToast] = useState({ visible: false, title: "", message: "" });
+   const [viewingRoute, setViewingRoute] = useState(null); // Array of trace nodes
+   const [traceUser, setTraceUser] = useState(""); // Name for trace modal
 
    useEffect(() => {
       // Check for App Updates from Cloud
@@ -627,6 +660,15 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                                           <EyeIcon show={false} />
                                        </button>
                                     )}
+                                    {log.route_trace && log.route_trace.length > 0 && (
+                                       <button 
+                                          onClick={() => { setViewingRoute(log.route_trace); setTraceUser(log.name); }}
+                                          style={{ background: '#111827', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', color:'white', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 2px 4px rgba(0,0,0,0.1)' }}
+                                          title="Track Movement Route"
+                                       >
+                                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                                       </button>
+                                    )}
                                  </div>
                               </td>
                               <td>
@@ -1074,6 +1116,44 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                <div className="modal-card" style={{maxWidth: '450px', background:'transparent', boxShadow:'none', padding:0}}>
                   <img src={viewingSelfie} style={{width: '100%', borderRadius: '12px', border: '4px solid white'}} alt="Selfie Log" />
                   <p style={{color:'white', textAlign:'center', marginTop:'1rem', fontWeight:600}}>Selfie Audit Log (Captured in Cloud)</p>
+               </div>
+            </div>
+         )}
+
+         {/* ROUTE TRACKER VIEWER */}
+         {viewingRoute && (
+            <div className="modal-overlay" style={{zIndex: 3000}} onClick={() => setViewingRoute(null)}>
+               <div className="modal-card" style={{maxWidth: '400px', width:'90%'}} onClick={(e) => e.stopPropagation()}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom: '2rem'}}>
+                     <div>
+                        <h2 style={{fontSize:'1.2rem', color:'#111827', margin:0}}>Travel Route: {traceUser}</h2>
+                        <p style={{fontSize:'0.8rem', color:'#6b7280', marginTop:'0.3rem'}}>Daily movement pulses (every 15 mins)</p>
+                     </div>
+                     <button className="close" onClick={() => setViewingRoute(null)}>×</button>
+                  </div>
+
+                  <div className="route-list" style={{maxHeight:'400px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'1rem'}}>
+                     {viewingRoute.map((node, idx) => (
+                        <div key={idx} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1rem', background:'#f9fafb', borderRadius:'12px', border:'1px solid #f3f4f6'}}>
+                           <div style={{display:'flex', alignItems:'center', gap:'1rem'}}>
+                              <div style={{background:'#111827', color:'white', width:'24px', height:'24px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:800}}>{idx + 1}</div>
+                              <span style={{fontWeight:700, fontSize:'0.9rem'}}>{node.time} Signal</span>
+                           </div>
+                           <a 
+                              href={`https://www.google.com/maps?q=${node.lat},${node.lng}`} 
+                              target="_blank" 
+                              rel="noreferrer"
+                              style={{background:'#10b981', color:'white', padding:'0.4rem 0.8rem', borderRadius:'6px',fontSize:'0.75rem', fontWeight:600, textDecoration:'none'}}
+                           >
+                              Open in Maps
+                           </a>
+                        </div>
+                     )).reverse()}
+                  </div>
+                  
+                  <div className="modal-actions mt">
+                     <button className="primary-btn" style={{width:'100%'}} onClick={() => setViewingRoute(null)}>Close Route History</button>
+                  </div>
                </div>
             </div>
          )}

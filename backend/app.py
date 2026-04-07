@@ -520,10 +520,35 @@ def login():
     except Exception as e:
         return jsonify({"message": "DB Auth Error", "status": "error"}), 500
 
-@app.route('/api/app_version', methods=['GET'])
+@app.route('/api/admin/app_version', methods=['GET'])
 def get_app_version():
     """Source of truth for mobile app updates"""
     return jsonify({"version": "1.1.0"})
+
+@app.route('/api/admin/attendance_trace', methods=['PATCH'])
+def track_attendance_trace():
+    """Appends current coordinates to today's movement trace for clocked-in staff"""
+    data = request.get_json()
+    username = data.get('username')
+    lat = data.get('lat')
+    lng = data.get('lng')
+    now = datetime.datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
+    time_str = now.strftime("%H:%M")
+    
+    if not username or lat is None or lng is None:
+        return jsonify({"message": "Incomplete location data"}), 400
+        
+    try:
+        # Append location node to today's staff route in attendance_logs
+        trace_node = {"lat": lat, "lng": lng, "time": time_str}
+        attendance_logs.update_one(
+            {"username": username, "date": today_str},
+            {"$push": {"route_trace": trace_node}}
+        )
+        return jsonify({"status": "success", "message": "Signal logged"})
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
 
 if __name__ == '__main__':
     print("Delta UPVC Cloud Backend booting up with MongoDB Atlas...")
