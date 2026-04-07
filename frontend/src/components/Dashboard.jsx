@@ -8,27 +8,27 @@ import EmployeeTracker from './EmployeeTracker';
 
 // --- ICONS ---
 const EyeIcon = ({ show }) => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    {show ? (
-      <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></>
-    ) : (
-      <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></>
-    )}
-  </svg>
+   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {show ? (
+         <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></>
+      ) : (
+         <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></>
+      )}
+   </svg>
 );
 
 const StaffTracker = () => {
    const [locations, setLocations] = useState([]);
-   
+
    useEffect(() => {
-       fetch(`${API_BASE_URL}/admin/locations`)
+      fetch(`${API_BASE_URL}/admin/locations`)
          .then(r => r.json())
          .then(data => setLocations(data || []));
    }, []);
 
    return (
       <div className="tracker-view">
-         <h1 style={{marginBottom:'2rem', fontSize:'1.8rem', color:'#111827'}}>Field Staff Locator</h1>
+         <h1 style={{ marginBottom: '2rem', fontSize: '1.8rem', color: '#111827' }}>Field Staff Locator</h1>
          <div className="staff-tracker-grid">
             {locations.length === 0 ? <p className="empty-txt">No staff signals found. Waiting for updates...</p> : locations.map((staff, i) => (
                <div key={i} className="staff-loc-card">
@@ -38,13 +38,13 @@ const StaffTracker = () => {
                      <p>Role: <strong>{staff.role}</strong></p>
                      <p className="last-seen">Last Seen: {new Date(staff.last_seen).toLocaleTimeString()}</p>
                   </div>
-                  <a 
-                     href={`https://www.google.com/maps?q=${staff.location?.lat},${staff.location?.lng}`} 
-                     target="_blank" 
+                  <a
+                     href={`https://www.google.com/maps?q=${staff.location?.lat},${staff.location?.lng}`}
+                     target="_blank"
                      rel="noopener noreferrer"
                      className="btn-gmaps"
                   >
-                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
                      See on Google Maps
                   </a>
                </div>
@@ -55,800 +55,1057 @@ const StaffTracker = () => {
 };
 
 const ToastPopup = ({ title, message, onClose }) => {
-  return (
-    <ToastPopupWrapper>
-      <div className="toast-card z-50">
-        <div className="toast-left">
-          <div className="toast-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-            </svg>
-          </div>
-          <div className="toast-content">
-            <p className="toast-title">{title}</p>
-            <p className="toast-desc">{message}</p>
-          </div>
-        </div>
-        <button className="toast-close" onClick={onClose}>
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    </ToastPopupWrapper>
-  );
+   return (
+      <ToastPopupWrapper>
+         <div className="toast-card z-50">
+            <div className="toast-left">
+               <div className="toast-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                     <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+               </div>
+               <div className="toast-content">
+                  <p className="toast-title">{title}</p>
+                  <p className="toast-desc">{message}</p>
+               </div>
+            </div>
+            <button className="toast-close" onClick={onClose}>
+               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+               </svg>
+            </button>
+         </div>
+      </ToastPopupWrapper>
+   );
 };
 
 const Dashboard = ({ user, onLogout, onHomeNav }) => {
-  const [tasks, setTasks] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [inquiries, setInquiries] = useState([]);
-  
-  // Navigation State
-  const [currentView, setCurrentView] = useState('Overview'); // 'Overview', 'Analytics', 'Profile'
-  const [selectedProfile, setSelectedProfile] = useState(null);
-  
-  const [chartMode, setChartMode] = useState('7Days'); // '7Days', 'Yearly', 'Custom'
-  const [chartYear, setChartYear] = useState('2026');
-  const [chartStartDate, setChartStartDate] = useState('');
-  const [chartEndDate, setChartEndDate] = useState('');
+   const [tasks, setTasks] = useState([]);
+   const [users, setUsers] = useState([]);
+   const [inquiries, setInquiries] = useState([]);
+   const [attendanceLogs, setAttendanceLogs] = useState([]);
+   const [attendanceFilter, setAttendanceFilter] = useState(new Date().toLocaleString('sv-SE').split(' ')[0]);
 
-  // Modals
-  const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [passVisible, setPassVisible] = useState(false);
-  
-  // Task Logic States
-  const [activeTaskMenu, setActiveTaskMenu] = useState(null); // task._id
-  const [editingTask, setEditingTask] = useState(null); // Full task object
-  const [itemToDelete, setItemToDelete] = useState(null); // task._id for confirmation
-  const [focusedTask, setFocusedTask] = useState(null); // Task object to view details
+   // Selfie Attendance States
+   const [showSelfieModal, setShowSelfieModal] = useState(false);
+   const [selfieType, setSelfieType] = useState('online'); // 'online' or 'offline'
+   const [isCapturing, setIsCapturing] = useState(false);
+   const [viewingSelfie, setViewingSelfie] = useState(null); // base64 to view in popup
 
-  useEffect(() => {
-    if (showAddTaskModal) {
-      const today = new Date().toLocaleString('sv-SE').split(' ')[0];
-      setSubmissionDate(today);
-      setTaskCreatedDate(today);
-    }
-  }, [showAddTaskModal]);
-  
-  // User Form State
-  const [editingUser, setEditingUser] = useState(null);
-  const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [newUsername, setNewUsername] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole] = useState('Employe');
-  const [newGender, setNewGender] = useState('');
-  const [newDob, setNewDob] = useState('');
-  const [newProfilePic, setNewProfilePic] = useState('');
+   // Navigation State
+   const [currentView, setCurrentView] = useState('Overview'); // 'Overview', 'Analytics', 'Profile'
+   const [selectedProfile, setSelectedProfile] = useState(null);
 
-  // Site Tracking State
-  const [siteName, setSiteName] = useState('');
-  const [sitePhone, setSitePhone] = useState('');
-  const [siteDesc, setSiteDesc] = useState('');
-  const [submissionDate, setSubmissionDate] = useState('');
-  const [taskCreatedDate, setTaskCreatedDate] = useState('');
-  
-  const [toast, setToast] = useState({ visible: false, title: "", message: "" });
-  
-  const showToast = (title, message) => {
-    setToast({ visible: true, title, message });
-    setTimeout(() => setToast({ visible: false, title: "", message: "" }), 3000);
-  };
+   const [chartMode, setChartMode] = useState('7Days'); // '7Days', 'Yearly', 'Custom'
+   const [chartYear, setChartYear] = useState('2026');
+   const [chartStartDate, setChartStartDate] = useState('');
+   const [chartEndDate, setChartEndDate] = useState('');
 
-  useEffect(() => fetchData(), [user.role]);
+   // Modals
+   const [showAddUserModal, setShowAddUserModal] = useState(false);
+   const [showEditModal, setShowEditModal] = useState(false);
+   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+   const [sidebarOpen, setSidebarOpen] = useState(false);
+   const [passVisible, setPassVisible] = useState(false);
 
-  const fetchData = () => {
-    fetch(`${API_BASE_URL}/admin/tasks`).then(r => r.json()).then(data => setTasks(data || []));
-    fetch(`${API_BASE_URL}/admin/users`).then(r => r.json()).then(data => setUsers(data || []));
-    if(user.role === 'CEO' || user.role === 'Manager') {
-      fetch(`${API_BASE_URL}/admin/contacts`).then(r => r.json()).then(data => setInquiries(data || []));
-    }
-  };
-  
-  const fetchUserPoints = (uname) => {
-    return tasks.filter(t => t.assignee === uname).reduce((acc, t) => {
-      if(t.status === 'Processing') return acc + 10;
-      if(t.status === 'Delivered') return acc + 20;
-      return acc + 5;
-    }, 0);
-  };
+   // Task Logic States
+   const [activeTaskMenu, setActiveTaskMenu] = useState(null); // task._id
+   const [editingTask, setEditingTask] = useState(null); // Full task object
+   const [itemToDelete, setItemToDelete] = useState(null); // task._id for confirmation
+   const [focusedTask, setFocusedTask] = useState(null); // Task object to view details
 
-  // Top Employee Calculation (Memoized for high performance rendering)
-  const topEmp = useMemo(() => {
-    if (!users || !tasks) return null;
-    const activeEmps = users.filter(u => u.role !== 'CEO').map(u => ({ ...u, pts: tasks.filter(t => t.assignee === u.username).reduce((acc, t) => {
-      if(t.status === 'Processing') return acc + 10;
-      if(t.status === 'Delivered') return acc + 20;
-      return acc + 5;
-    }, 0) }));
-    return activeEmps.reduce((prev, curr) => (prev && prev.pts > curr.pts) ? prev : curr, null);
-  }, [users, tasks]);
-
-  const calculateLevel = (pts) => Math.floor(pts / 70) + 1;
-  const getProgress = (pts) => ((pts % 70) / 70) * 100;
-
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if(file) {
-      if(file.size > 8 * 1024 * 1024) {
-        showToast("Error", "Image must be under 8MB");
-        return;
+   useEffect(() => {
+      if (showAddTaskModal) {
+         const today = new Date().toLocaleString('sv-SE').split(' ')[0];
+         setSubmissionDate(today);
+         setTaskCreatedDate(today);
       }
-      const reader = new FileReader();
-      reader.onloadend = () => setNewProfilePic(reader.result);
-      reader.readAsDataURL(file);
-    }
-  };
+   }, [showAddTaskModal]);
 
-  const me = users.find(u => u.username === (user.admin || user.username)) || {};
-  const currentPoints = fetchUserPoints(me.username);
-  
-  // Filtering logic to ensure CEOs see all entries while staff see their own
-  const displayedTasks = (user.role === 'CEO' || user.role === 'Manager') ? tasks : tasks.filter(t => t.assignee === user.username || t.assignee === user.admin);
-  
-  const handleAddUser = (e) => {
-    e.preventDefault();
-    fetch(`${API_BASE_URL}/admin/add_user`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName, phone: newPhone, email: newEmail, username: newUsername, password: newPassword, role: newRole, gender: newGender, dob: newDob, profile_pic: newProfilePic })
-    }).then(r => r.json()).then(res => {
-      if (res.status === 'success') { showToast("done successfully :)", `Data saved for ${newName}`); setShowAddUserModal(false); fetchData(); clearForm();
-      } else showToast("Error", res.message);
-    });
-  };
+   // User Form State
+   const [editingUser, setEditingUser] = useState(null);
+   const [newName, setNewName] = useState('');
+   const [newPhone, setNewPhone] = useState('');
+   const [newEmail, setNewEmail] = useState('');
+   const [newUsername, setNewUsername] = useState('');
+   const [newPassword, setNewPassword] = useState('');
+   const [newRole, setNewRole] = useState('Employe');
+   const [newGender, setNewGender] = useState('');
+   const [newDob, setNewDob] = useState('');
+   const [newProfilePic, setNewProfilePic] = useState('');
 
-  const handleAddSiteLog = (e) => {
-    e.preventDefault();
-    const isEdit = !!editingTask;
-    const url = isEdit ? `${API_BASE_URL}/admin/edit_task` : `${API_BASE_URL}/admin/add_task`;
-    const bodyData = { 
-      task: siteDesc, 
-      deadline: `${siteName} - ${sitePhone}`, 
-      submission_date: submissionDate,
-      created_at_date: taskCreatedDate 
-    };
-    
-    if (isEdit) bodyData.task_id = editingTask._id;
-    else bodyData.assignee = user.admin || user.username;
+   // Site Tracking State
+   const [siteName, setSiteName] = useState('');
+   const [sitePhone, setSitePhone] = useState('');
+   const [siteDesc, setSiteDesc] = useState('');
+   const [submissionDate, setSubmissionDate] = useState('');
+   const [taskCreatedDate, setTaskCreatedDate] = useState('');
 
-    fetch(url, {
-       method: 'POST',
-       headers: { 'Content-Type': 'application/json' },
-       body: JSON.stringify(bodyData)
-    }).then(r => r.json()).then(res => {
-       showToast("done successfully :)", res.message); 
-       setShowAddTaskModal(false); 
-       setEditingTask(null);
-       fetchData();
-       setSiteName(''); setSitePhone(''); setSiteDesc(''); setSubmissionDate(''); setTaskCreatedDate('');
-    });
-  };
+   const [toast, setToast] = useState({ visible: false, title: "", message: "" });
 
-  const handleEditTaskInit = (t) => {
-    setEditingTask(t);
-    const [name, phone] = (t.deadline || "").split(" - ");
-    setSiteName(name || "");
-    setSitePhone(phone || "");
-    setSiteDesc(t.task || "");
-    setSubmissionDate(t.submission_date || "");
-    setTaskCreatedDate(t.created_at_date || "");
-    setShowAddTaskModal(true);
-  };
+   const showToast = (title, message) => {
+      setToast({ visible: true, title, message });
+      setTimeout(() => setToast({ visible: false, title: "", message: "" }), 3000);
+   };
 
-  const handleDeleteTask = (taskId) => {
-    setItemToDelete(taskId);
-  };
+   useEffect(() => fetchData(), [user.role]);
 
-  const confirmDelete = () => {
-    if (!itemToDelete) return;
-    fetch(`${API_BASE_URL}/admin/delete_task`, {
-       method: 'DELETE',
-       headers: { 'Content-Type': 'application/json' },
-       body: JSON.stringify({ task_id: itemToDelete })
-    }).then(r => r.json()).then(res => {
-       showToast("Removed", res.message);
-       setItemToDelete(null);
-       fetchData();
-    });
-  };
+   const fetchData = () => {
+      fetch(`${API_BASE_URL}/admin/tasks`).then(r => r.json()).then(data => setTasks(data || []));
+      fetch(`${API_BASE_URL}/admin/users`).then(r => r.json()).then(data => setUsers(data || []));
+      if (user.role === 'CEO' || user.role === 'Manager') {
+         fetch(`${API_BASE_URL}/admin/contacts`).then(r => r.json()).then(data => setInquiries(data || []));
+         fetch(`${API_BASE_URL}/admin/attendance_history?date=${attendanceFilter}`).then(r => r.json()).then(data => setAttendanceLogs(data || []));
+      }
+   };
 
-  const handleUpdateTaskStatus = (taskId, newStatus) => {
-    fetch(`${API_BASE_URL}/admin/update_task_status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task_id: taskId, status: newStatus })
-    }).then(r => r.json()).then(res => { if(res.status === 'success') fetchData(); });
-  };
+   useEffect(() => {
+      if (user.role === 'CEO' || user.role === 'Manager') {
+         fetch(`${API_BASE_URL}/admin/attendance_history?date=${attendanceFilter}`).then(r => r.json()).then(data => setAttendanceLogs(data || []));
+      }
+   }, [attendanceFilter]);
 
-  const clearForm = () => {
-    setNewName(''); setNewPhone(''); setNewEmail(''); setNewUsername(''); setNewPassword('');
-    setNewRole('Employe'); setPassVisible(false); setNewGender(''); setNewDob(''); setNewProfilePic('');
-  };
+   const fetchUserPoints = (uname) => {
+      return tasks.filter(t => t.assignee === uname).reduce((acc, t) => {
+         if (t.status === 'Processing') return acc + 10;
+         if (t.status === 'Delivered') return acc + 20;
+         return acc + 5;
+      }, 0);
+   };
 
-  const handleEditInit = (u) => {
-    setEditingUser(u); setNewName(u.name || ''); setNewPhone(u.phone || ''); setNewEmail(u.email || ''); 
-    setNewUsername(u.username); setNewPassword(''); setNewRole(u.role);
-    setNewGender(u.gender || ''); setNewDob(u.dob || ''); setNewProfilePic(u.profile_pic || '');
-    setShowEditModal(true); setPassVisible(false);
-  };
+   const handleAttendance = (newStatus) => {
+      setSelfieType(newStatus);
+      setShowSelfieModal(true);
+   };
 
-  const handleUpdateUser = (e) => {
-    e.preventDefault();
-    fetch(`${API_BASE_URL}/admin/add_user`, {
-       method: 'POST', headers: { 'Content-Type': 'application/json' },
-       body: JSON.stringify({ name: newName, phone: newPhone, email: newEmail, username: newUsername, password: newPassword, role: newRole, isUpdate: true, gender: newGender, dob: newDob, profile_pic: newProfilePic })
-    }).then(r => r.json()).then(res => { showToast("done successfully :)", res.message); setShowEditModal(false); fetchData(); });
-  };
+   const completeAttendanceWithSelfie = (selfieBase64) => {
+      setIsCapturing(true);
+      fetch(`${API_BASE_URL}/admin/attendance`, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ 
+            username: user.admin || user.username, 
+            status: selfieType,
+            selfie: selfieBase64 
+         })
+      }).then(r => r.json()).then(res => {
+         setIsCapturing(false);
+         if(res.status === 'success') {
+            showToast("Done", `Clock ${selfieType === 'online' ? 'In' : 'Out'} Successful!`);
+            setShowSelfieModal(false);
+            fetchData();
+         } else {
+            showToast("Error", res.message);
+         }
+      }).catch(() => setIsCapturing(false));
+   };
+
+   // Top Employee Calculation (Memoized for high performance rendering)
+   const topEmp = useMemo(() => {
+      if (!users || !tasks) return null;
+      const activeEmps = users.filter(u => u.role !== 'CEO').map(u => ({
+         ...u, pts: tasks.filter(t => t.assignee === u.username).reduce((acc, t) => {
+            if (t.status === 'Processing') return acc + 10;
+            if (t.status === 'Delivered') return acc + 20;
+            return acc + 5;
+         }, 0)
+      }));
+      return activeEmps.reduce((prev, curr) => (prev && prev.pts > curr.pts) ? prev : curr, null);
+   }, [users, tasks]);
+
+   const calculateLevel = (pts) => Math.floor(pts / 70) + 1;
+   const getProgress = (pts) => ((pts % 70) / 70) * 100;
+
+   const calculateHoursWorked = (inTime, outTime) => {
+      if (!inTime || !outTime) return 0;
+      try {
+         const [h1, m1, s1] = inTime.split(':').map(Number);
+         const [h2, m2, s2] = outTime.split(':').map(Number);
+         const start = new Date(0, 0, 0, h1, m1, s1);
+         const end = new Date(0, 0, 0, h2, m2, s2);
+         const diff = (end.getTime() - start.getTime()) / 1000 / 60 / 60;
+         return Math.max(0, diff).toFixed(1);
+      } catch (e) { return 0; }
+   };
+
+   const handleImageUpload = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+         if (file.size > 8 * 1024 * 1024) {
+            showToast("Error", "Image must be under 8MB");
+            return;
+         }
+         const reader = new FileReader();
+         reader.onloadend = () => setNewProfilePic(reader.result);
+         reader.readAsDataURL(file);
+      }
+   };
+
+   const me = users.find(u => u.username === (user.admin || user.username)) || {};
+   const currentPoints = fetchUserPoints(me.username);
+
+   // Filtering logic to ensure CEOs see all entries while staff see their own
+   const displayedTasks = (user.role === 'CEO' || user.role === 'Manager') ? tasks : tasks.filter(t => t.assignee === user.username || t.assignee === user.admin);
+
+   const handleAddUser = (e) => {
+      e.preventDefault();
+      fetch(`${API_BASE_URL}/admin/add_user`, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ name: newName, phone: newPhone, email: newEmail, username: newUsername, password: newPassword, role: newRole, gender: newGender, dob: newDob, profile_pic: newProfilePic })
+      }).then(r => r.json()).then(res => {
+         if (res.status === 'success') {
+            showToast("done successfully :)", `Data saved for ${newName}`); setShowAddUserModal(false); fetchData(); clearForm();
+         } else showToast("Error", res.message);
+      });
+   };
+
+   const handleAddSiteLog = (e) => {
+      e.preventDefault();
+      const isEdit = !!editingTask;
+      const url = isEdit ? `${API_BASE_URL}/admin/edit_task` : `${API_BASE_URL}/admin/add_task`;
+      const bodyData = {
+         task: siteDesc,
+         deadline: `${siteName} - ${sitePhone}`,
+         submission_date: submissionDate,
+         created_at_date: taskCreatedDate
+      };
+
+      if (isEdit) bodyData.task_id = editingTask._id;
+      else bodyData.assignee = user.admin || user.username;
+
+      fetch(url, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify(bodyData)
+      }).then(r => r.json()).then(res => {
+         showToast("done successfully :)", res.message);
+         setShowAddTaskModal(false);
+         setEditingTask(null);
+         fetchData();
+         setSiteName(''); setSitePhone(''); setSiteDesc(''); setSubmissionDate(''); setTaskCreatedDate('');
+      });
+   };
+
+   const handleEditTaskInit = (t) => {
+      setEditingTask(t);
+      const [name, phone] = (t.deadline || "").split(" - ");
+      setSiteName(name || "");
+      setSitePhone(phone || "");
+      setSiteDesc(t.task || "");
+      setSubmissionDate(t.submission_date || "");
+      setTaskCreatedDate(t.created_at_date || "");
+      setShowAddTaskModal(true);
+   };
+
+   const handleDeleteTask = (taskId) => {
+      setItemToDelete(taskId);
+   };
+
+   const confirmDelete = () => {
+      if (!itemToDelete) return;
+      fetch(`${API_BASE_URL}/admin/delete_task`, {
+         method: 'DELETE',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ task_id: itemToDelete })
+      }).then(r => r.json()).then(res => {
+         showToast("Removed", res.message);
+         setItemToDelete(null);
+         fetchData();
+      });
+   };
+
+   const handleUpdateTaskStatus = (taskId, newStatus) => {
+      fetch(`${API_BASE_URL}/admin/update_task_status`, {
+         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task_id: taskId, status: newStatus })
+      }).then(r => r.json()).then(res => { if (res.status === 'success') fetchData(); });
+   };
+
+   const clearForm = () => {
+      setNewName(''); setNewPhone(''); setNewEmail(''); setNewUsername(''); setNewPassword('');
+      setNewRole('Employe'); setPassVisible(false); setNewGender(''); setNewDob(''); setNewProfilePic('');
+   };
+
+   const handleEditInit = (u) => {
+      setEditingUser(u); setNewName(u.name || ''); setNewPhone(u.phone || ''); setNewEmail(u.email || '');
+      setNewUsername(u.username); setNewPassword(''); setNewRole(u.role);
+      setNewGender(u.gender || ''); setNewDob(u.dob || ''); setNewProfilePic(u.profile_pic || '');
+      setShowEditModal(true); setPassVisible(false);
+   };
+
+   const handleUpdateUser = (e) => {
+      e.preventDefault();
+      fetch(`${API_BASE_URL}/admin/add_user`, {
+         method: 'POST', headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ name: newName, phone: newPhone, email: newEmail, username: newUsername, password: newPassword, role: newRole, isUpdate: true, gender: newGender, dob: newDob, profile_pic: newProfilePic })
+      }).then(r => r.json()).then(res => { showToast("done successfully :)", res.message); setShowEditModal(false); fetchData(); });
+   };
+
+   useEffect(() => {
+     if (showSelfieModal) {
+        // Delay slightly to ensure video element is mounted
+        const timer = setTimeout(() => {
+           const v = document.getElementById('selfieVideo');
+           if (v && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+              navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+                 .then(stream => {
+                    v.srcObject = stream;
+                 })
+                 .catch(err => {
+                    showToast("Camera Error", "Failed to access camera. Check permissions.");
+                    console.error("Camera access error:", err);
+                 });
+           } else if (!navigator.mediaDevices) {
+              showToast("Security Alert", "Camera requires HTTPS or Localhost. Access is blocked on this Network IP.");
+           }
+        }, 300);
+        return () => clearTimeout(timer);
+     }
+  }, [showSelfieModal]);
 
   const navToProfile = (u) => {
-    setSelectedProfile(u);
-    setCurrentView('Profile');
-  };
+      setSelectedProfile(u);
+      setCurrentView('Profile');
+   };
 
 
-  // ANALYTICS COMPONENTS
-  const renderAnalytics = () => {
-     const pending = displayedTasks.filter(t => t.status === 'Pending').length;
-     const processing = displayedTasks.filter(t => t.status === 'Processing').length;
-     const delivered = displayedTasks.filter(t => t.status === 'Delivered').length;
-     const total = displayedTasks.length || 1; 
+   // ANALYTICS COMPONENTS
+   const renderAnalytics = () => {
+      const pending = displayedTasks.filter(t => t.status === 'Pending').length;
+      const processing = displayedTasks.filter(t => t.status === 'Processing').length;
+      const delivered = displayedTasks.filter(t => t.status === 'Delivered').length;
+      const total = displayedTasks.length || 1;
 
-     const generateGaugeData = (tasksList) => {
-        const todayStr = new Date().toLocaleString('sv-SE').split(' ')[0];
-        const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-        const yestStr = yesterday.toLocaleString('sv-SE').split(' ')[0];
+      const generateGaugeData = (tasksList) => {
+         const todayStr = new Date().toLocaleString('sv-SE').split(' ')[0];
+         const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+         const yestStr = yesterday.toLocaleString('sv-SE').split(' ')[0];
 
-        const todayTasks = tasksList.filter(t => (t.created_at_date || t.submission_date || '').trim() === todayStr);
-        const yestTasks = tasksList.filter(t => (t.created_at_date || t.submission_date || '').trim() === yestStr);
-        
-        const count = todayTasks.length;
-        const yestCount = yestTasks.length;
-        
-        // Target is arbitrary (suppose daily goal is 10)
-        const target = 10;
-        const percentage = Math.min(Math.round((count / target) * 100), 100);
-        
-        const diff = count - yestCount;
-        const trend = diff >= 0 ? `+${diff} from yesterday` : `${diff} from yesterday`;
-        const trendColor = diff >= 0 ? '#10b981' : '#ef4444';
+         const todayTasks = tasksList.filter(t => (t.created_at_date || t.submission_date || '').trim() === todayStr);
+         const yestTasks = tasksList.filter(t => (t.created_at_date || t.submission_date || '').trim() === yestStr);
 
-        return { count, percentage, trend, trendColor, todayStr };
-     };
+         const count = todayTasks.length;
+         const yestCount = yestTasks.length;
 
-     const gauge = generateGaugeData(displayedTasks);
+         // Target is arbitrary (suppose daily goal is 10)
+         const target = 10;
+         const percentage = Math.min(Math.round((count / target) * 100), 100);
 
-     return (
-        <AnalyticsGrid>
-           <div className="a-card wide">
-              <h3>{user.role === 'CEO' ? 'Company Lead Funnel' : 'Your Lead Funnel'}</h3>
-              <div className="funnel-stats">
-                 <div className="f-stat"><span className="val">{displayedTasks.length}</span><span className="lbl">Total Logs</span></div>
-                 <div className="f-stat"><span className="val">{Math.round(((processing+delivered)/total)*100)}%</span><span className="lbl">Action Rate</span></div>
-                 <div className="f-stat"><span className="val" style={{color:'#10b981'}}>{Math.round((delivered/total)*100)}%</span><span className="lbl">Delivery Success</span></div>
-              </div>
-              <div className="chart-bg green-gradient"></div>
-           </div>
+         const diff = count - yestCount;
+         const trend = diff >= 0 ? `+${diff} from yesterday` : `${diff} from yesterday`;
+         const trendColor = diff >= 0 ? '#10b981' : '#ef4444';
 
-           <div style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
-              <div className="a-card" style={{flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
-                 <h3 style={{margin: '0 0 0.5rem 0'}}>{user.role === 'CEO' ? 'Overall Productivity' : 'Performance Level'}</h3>
-                 <div style={{fontSize: '2rem', fontWeight: 'bold', color: '#111827'}}>
-                    {user.role === 'CEO' ? `${displayedTasks.length} Tasks` : `Lv. ${calculateLevel(fetchUserPoints(me.username))}`}
-                 </div>
-                 <div style={{fontSize: '0.85rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.5rem'}}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-                    <span>+15% efficiency</span>
-                 </div>
-              </div>
-              <div className="a-card" style={{flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
-                 <h3 style={{margin: '0 0 0.5rem 0'}}>Avg. Clearance</h3>
-                 <div style={{fontSize: '2rem', fontWeight: 'bold', color: '#111827'}}>
-                    4.2 Days
-                 </div>
-                 <div style={{fontSize: '0.85rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.5rem'}}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-                    <span>+8.2% from last month</span>
-                 </div>
-              </div>
-           </div>
-           
-           <div className="a-card wide pt-stat" style={{gridColumn: '1 / -1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'400px'}}>
-              <div style={{width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'2rem'}}>
-                 <h3 style={{margin:0}}>Productivity Gauge</h3>
-                 <span style={{fontSize:'0.8rem', color:'#6b7280'}}>Live: {gauge.todayStr}</span>
-              </div>
-              
-              <div className="gauge-container">
-                 <svg viewBox="0 0 100 50" className="gauge-svg">
-                    {/* Background Arc */}
-                    <path d="M10,45 A40,40 0 0,1 90,45" fill="none" stroke="#e5e7eb" strokeWidth="8" strokeLinecap="round" />
-                    {/* Progress Arc */}
-                    <path d="M10,45 A40,40 0 0,1 90,45" fill="none" stroke="#10b981" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${gauge.percentage * 1.26}, 126`} style={{transition:'stroke-dasharray 1s ease-out'}} />
-                 </svg>
-                 <div className="gauge-content">
-                    <div className="gauge-val">{gauge.count}</div>
-                    <div className="gauge-label">Tasks Today</div>
-                    <div className="gauge-trend" style={{color: gauge.trendColor}}>{gauge.trend}</div>
-                 </div>
-              </div>
-              
-              <div style={{display:'flex', gap:'2rem', marginTop:'2rem'}}>
-                 <div style={{display:'flex', alignItems:'center', gap:'0.5rem', fontSize:'0.85rem'}}>
-                    <div style={{width:'12px', height:'12px', background:'#10b981', borderRadius:'2px'}}></div> Total Created Today
-                 </div>
-                 <div style={{display:'flex', alignItems:'center', gap:'0.5rem', fontSize:'0.85rem'}}>
-                    <div style={{width:'12px', height:'12px', background:'#e5e7eb', borderRadius:'2px'}}></div> Daily Target (10)
-                 </div>
-              </div>
-           </div>
+         return { count, percentage, trend, trendColor, todayStr };
+      };
 
-           <div className="a-card wide pt-stat">
-              <h3>Status Breakdown</h3>
-              <div className="status-bars">
-                 <div className="sb-row">
-                    <label>Delivered ({delivered})</label>
-                    <div className="sb-bg"><div className="sb-fill" style={{width: `${(delivered/total)*100}%`, background: '#10b981'}}></div></div>
-                 </div>
-                 <div className="sb-row">
-                    <label>Processing ({processing})</label>
-                    <div className="sb-bg"><div className="sb-fill" style={{width: `${(processing/total)*100}%`, background: '#f59e0b'}}></div></div>
-                 </div>
-                 <div className="sb-row">
-                    <label>Pending ({pending})</label>
-                    <div className="sb-bg"><div className="sb-fill" style={{width: `${(pending/total)*100}%`, background: '#9ca3af'}}></div></div>
-                 </div>
-              </div>
-           </div>
-        </AnalyticsGrid>
-     );
-  };
-
-  const renderLeads = () => {
-    return (
-      <div className="tracker-view">
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'2rem'}}>
-          <h1 style={{margin:0, fontSize:'1.8rem', color:'#111827'}}>Client Leads (Inquiries)</h1>
-          <div style={{background:'#ecfdf5', color:'#10b981', padding:'0.5rem 1rem', borderRadius:'2rem', fontSize:'0.8rem', fontWeight:800}}>
-            {inquiries.length} TOTAL LEADS
-          </div>
-        </div>
-        <div className="staff-tracker-grid">
-           {inquiries.length === 0 ? (
-             <div className="a-card wide" style={{gridColumn:'1/-1', textAlign:'center', padding:'4rem'}}>
-                <div style={{fontSize:'3rem', marginBottom:'1rem'}}>📩</div>
-                <h3>No Leads Yet</h3>
-                <p style={{color:'#6b7280'}}>When clients fill the contact form on your website, they will appear here instantly.</p>
-             </div>
-           ) : inquiries.map((lead, i) => (
-              <div key={i} className="staff-loc-card" style={{alignItems: 'flex-start', textAlign: 'left', padding: '1.5rem'}}>
-                 <div style={{display:'flex', gap:'1rem', alignItems:'center', marginBottom: '1.5rem', width:'100%'}}>
-                    <div className="sl-avatar" style={{marginBottom:0, width:'45px', height:'45px', fontSize:'1.1rem', background: '#10b981', color:'white'}}>{lead.interest[0]}</div>
-                    <div style={{flex:1}}>
-                       <h3 style={{margin:0, fontSize:'1.1rem'}}>{lead.name}</h3>
-                       <p style={{margin:0, color:'#10b981', fontWeight:600, fontSize:'0.85rem'}}>{lead.interest}</p>
-                    </div>
-                 </div>
-                 <div className="sl-info" style={{width:'100%'}}>
-                    <div style={{display:'flex', flexDirection:'column', gap:'0.8rem'}}>
-                       <p style={{margin:0, display:'flex', alignItems:'center', gap:'0.8rem', fontSize:'0.95rem', color:'#374151'}}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> 
-                          {lead.phone}
-                       </p>
-                       {lead.email && (
-                          <p style={{margin:0, display:'flex', alignItems:'center', gap:'0.8rem', fontSize:'0.95rem', color:'#374151'}}>
-                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> 
-                             {lead.email}
-                          </p>
-                       )}
-                       <p style={{margin:'0.5rem 0 0 0', fontSize:'0.75rem', color:'#9ca3af', fontWeight:600}}>RECEIVED: {lead.timestamp}</p>
-                    </div>
-                 </div>
-                 <a 
-                    href={`tel:${lead.phone}`} 
-                    className="btn-gmaps"
-                    style={{width:'100%', justifyContent:'center', background: '#111827', marginTop: '1.5rem', border:'none'}}
-                 >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                    Call Client Now
-                 </a>
-              </div>
-           ))}
-        </div>
-      </div>
-    );
-  };
-
-  // PROFILE COMPONENT
-  const renderProfile = () => {
-     if (!selectedProfile) return null;
-     const pUser = selectedProfile;
-     const pPts = fetchUserPoints(pUser.username);
-     const pLvl = calculateLevel(pPts);
-     const isTopEMP = topEmp && topEmp.username === pUser.username;
-     const tList = tasks.filter(t => t.assignee === pUser.username);
-
-     return (
-        <div style={{ position: 'relative' }}>
-           <button className="p-back-btn" onClick={() => { setCurrentView('Overview'); setSelectedProfile(null); }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-              Back
-           </button>
-           <ProfileLayout>
-              <div className="prof-left">
-                 <div className="p-banner green-gradient"></div>
-                 <div className="p-info">
-                    <div className="p-avatar-wrap">
-                       {isTopEMP && <div className="p-crown">👑</div>}
-                       <img src={pUser.profile_pic || 'https://i.pravatar.cc/150'} alt="dp" />
-                    </div>
-                    <h2>{pUser.name || pUser.username} <span className="p-badge">{pUser.role}</span></h2>
-                    <div className="p-skills"><span className="sk">Delta Certified</span><span className="sk">Level {pLvl}</span></div>
-                    
-                    <div className="p-details">
-                       <div className="pd-row"><span>Location</span><strong>Network</strong></div>
-                       <div className="pd-row"><span>Gender</span><strong>{pUser.gender || 'N/A'}</strong></div>
-                       <div className="pd-row"><span>DOB</span><strong>{pUser.dob || 'N/A'}</strong></div>
-                    </div>
-                    
-                    {(user.role === 'CEO' || me.username === pUser.username) && (
-                       <button className="primary-btn mt-full" onClick={() => handleEditInit(pUser)}>Edit Settings</button>
-                    )}
-                 </div>
-              </div>
-              
-              <div className="prof-right">
-                 <div className="p-stats-grid">
-                    <div className="p-stat-box"><strong>92%</strong><span>Ability</span></div>
-                    <div className="p-stat-box"><strong>98%</strong><span>Availability</span></div>
-                    <div className="p-stat-box"><strong>Level {pLvl}</strong><span>Aspect Score</span></div>
-                 </div>
-                 
-                 <div className="arc-section">
-                    <div className="arc-left">
-                       <h3>Aspect Score</h3>
-                       <p>Total workflow point evaluation</p>
-                    </div>
-                    <div className="arc-visual">
-                       <svg viewBox="0 0 36 36" className="circular-chart green">
-                         <path className="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                         <path className="circle" strokeDasharray={`${Math.min((pPts/1000)*100, 100)}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                       </svg>
-                       <div className="arc-text">{pPts}</div>
-                    </div>
-                 </div>
-                 
-                 <div className="active-interviews">
-                    <h3>Active Output</h3>
-                    <div className="active-output-list">
-                       {tList.length === 0 ? <p className="empty-txt">No active tasks.</p> : tList.map((t, i) => (
-                          <div className="pt-row clickable" key={i} onClick={() => setFocusedTask(t)}>
-                             <strong>{t.task}</strong>
-                             <span className={`status-pill ${t.status.toLowerCase()}`}>{t.status}</span>
-                          </div>
-                       ))}
-                    </div>
-                 </div>
-              </div>
-           </ProfileLayout>
-        </div>
-     );
-  };
-
-  const StaffTracker = () => {
-      const [locations, setLocations] = useState([]);
-      
-      useEffect(() => {
-          fetch(`${API_BASE_URL}/admin/locations`)
-            .then(r => r.json())
-            .then(data => setLocations(data || []));
-      }, []);
+      const gauge = generateGaugeData(displayedTasks);
 
       return (
+         <AnalyticsGrid>
+            <div className="a-card wide">
+               <h3>{user.role === 'CEO' ? 'Company Lead Funnel' : 'Your Lead Funnel'}</h3>
+               <div className="funnel-stats">
+                  <div className="f-stat"><span className="val">{displayedTasks.length}</span><span className="lbl">Total Logs</span></div>
+                  <div className="f-stat"><span className="val">{Math.round(((processing + delivered) / total) * 100)}%</span><span className="lbl">Action Rate</span></div>
+                  <div className="f-stat"><span className="val" style={{ color: '#10b981' }}>{Math.round((delivered / total) * 100)}%</span><span className="lbl">Delivery Success</span></div>
+               </div>
+               <div className="chart-bg green-gradient"></div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+               <div className="a-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <h3 style={{ margin: '0 0 0.5rem 0' }}>{user.role === 'CEO' ? 'Overall Productivity' : 'Performance Level'}</h3>
+                  <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#111827' }}>
+                     {user.role === 'CEO' ? `${displayedTasks.length} Tasks` : `Lv. ${calculateLevel(fetchUserPoints(me.username))}`}
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.5rem' }}>
+                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                     <span>+15% efficiency</span>
+                  </div>
+               </div>
+               <div className="a-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <h3 style={{ margin: '0 0 0.5rem 0' }}>Avg. Clearance</h3>
+                  <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#111827' }}>
+                     4.2 Days
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.5rem' }}>
+                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                     <span>+8.2% from last month</span>
+                  </div>
+               </div>
+            </div>
+
+            <div className="a-card wide pt-stat" style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+               <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                  <h3 style={{ margin: 0 }}>Productivity Gauge</h3>
+                  <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>Live: {gauge.todayStr}</span>
+               </div>
+
+               <div className="gauge-container">
+                  <svg viewBox="0 0 100 50" className="gauge-svg">
+                     {/* Background Arc */}
+                     <path d="M10,45 A40,40 0 0,1 90,45" fill="none" stroke="#e5e7eb" strokeWidth="8" strokeLinecap="round" />
+                     {/* Progress Arc */}
+                     <path d="M10,45 A40,40 0 0,1 90,45" fill="none" stroke="#10b981" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${gauge.percentage * 1.26}, 126`} style={{ transition: 'stroke-dasharray 1s ease-out' }} />
+                  </svg>
+                  <div className="gauge-content">
+                     <div className="gauge-val">{gauge.count}</div>
+                     <div className="gauge-label">Tasks Today</div>
+                     <div className="gauge-trend" style={{ color: gauge.trendColor }}>{gauge.trend}</div>
+                  </div>
+               </div>
+
+               <div style={{ display: 'flex', gap: '2rem', marginTop: '2rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+                     <div style={{ width: '12px', height: '12px', background: '#10b981', borderRadius: '2px' }}></div> Total Created Today
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+                     <div style={{ width: '12px', height: '12px', background: '#e5e7eb', borderRadius: '2px' }}></div> Daily Target (10)
+                  </div>
+               </div>
+            </div>
+
+            <div className="a-card wide pt-stat">
+               <h3>Status Breakdown</h3>
+               <div className="status-bars">
+                  <div className="sb-row">
+                     <label>Delivered ({delivered})</label>
+                     <div className="sb-bg"><div className="sb-fill" style={{ width: `${(delivered / total) * 100}%`, background: '#10b981' }}></div></div>
+                  </div>
+                  <div className="sb-row">
+                     <label>Processing ({processing})</label>
+                     <div className="sb-bg"><div className="sb-fill" style={{ width: `${(processing / total) * 100}%`, background: '#f59e0b' }}></div></div>
+                  </div>
+                  <div className="sb-row">
+                     <label>Pending ({pending})</label>
+                     <div className="sb-bg"><div className="sb-fill" style={{ width: `${(pending / total) * 100}%`, background: '#9ca3af' }}></div></div>
+                  </div>
+               </div>
+            </div>
+         </AnalyticsGrid>
+      );
+   };
+
+   const renderLeads = () => {
+      return (
          <div className="tracker-view">
-            <h1 style={{marginBottom:'2rem', fontSize:'1.8rem', color:'#111827'}}>Field Staff Locator</h1>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+               <h1 style={{ margin: 0, fontSize: '1.8rem', color: '#111827' }}>Client Leads (Inquiries)</h1>
+               <div style={{ background: '#ecfdf5', color: '#10b981', padding: '0.5rem 1rem', borderRadius: '2rem', fontSize: '0.8rem', fontWeight: 800 }}>
+                  {inquiries.length} TOTAL LEADS
+               </div>
+            </div>
             <div className="staff-tracker-grid">
-               {locations.map((staff, i) => (
-                  <div key={i} className="staff-loc-card">
-                     <div className="sl-avatar">{staff.name?.[0] || staff.username[0]}</div>
-                     <div className="sl-info">
-                        <h3>{staff.name || staff.username}</h3>
-                        <p>Role: <strong>{staff.role}</strong></p>
-                        <p className="last-seen">Last Seen: {new Date(staff.last_seen).toLocaleTimeString()}</p>
+               {inquiries.length === 0 ? (
+                  <div className="a-card wide" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem' }}>
+                     <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📩</div>
+                     <h3>No Leads Yet</h3>
+                     <p style={{ color: '#6b7280' }}>When clients fill the contact form on your website, they will appear here instantly.</p>
+                  </div>
+               ) : inquiries.map((lead, i) => (
+                  <div key={i} className="staff-loc-card" style={{ alignItems: 'flex-start', textAlign: 'left', padding: '1.5rem' }}>
+                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1.5rem', width: '100%' }}>
+                        <div className="sl-avatar" style={{ marginBottom: 0, width: '45px', height: '45px', fontSize: '1.1rem', background: '#10b981', color: 'white' }}>{lead.interest[0]}</div>
+                        <div style={{ flex: 1 }}>
+                           <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{lead.name}</h3>
+                           <p style={{ margin: 0, color: '#10b981', fontWeight: 600, fontSize: '0.85rem' }}>{lead.interest}</p>
+                        </div>
                      </div>
-                     <a 
-                        href={`https://www.google.com/maps?q=${staff.location.lat},${staff.location.lng}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
+                     <div className="sl-info" style={{ width: '100%' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                           <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', fontSize: '0.95rem', color: '#374151' }}>
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
+                              {lead.phone}
+                           </p>
+                           {lead.email && (
+                              <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', fontSize: '0.95rem', color: '#374151' }}>
+                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
+                                 {lead.email}
+                              </p>
+                           )}
+                           <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600 }}>RECEIVED: {lead.timestamp}</p>
+                        </div>
+                     </div>
+                     <a
+                        href={`tel:${lead.phone}`}
                         className="btn-gmaps"
+                        style={{ width: '100%', justifyContent: 'center', background: '#111827', marginTop: '1.5rem', border: 'none' }}
                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                        See on Google Maps
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
+                        Call Client Now
                      </a>
                   </div>
                ))}
-               {locations.length === 0 && <p className="empty-txt">No staff signals found. Waiting for updates...</p>}
             </div>
          </div>
       );
    };
 
-  return (
-    <DLayout>
-      {toast.visible && <ToastPopup title={toast.title} message={toast.message} onClose={() => setToast({...toast, visible: false})} />}
-      
-      {/* SIDEBAR */}
-      <Sidebar className={sidebarOpen ? 'open' : ''}>
-        <div className="mobile-close" onClick={() => setSidebarOpen(false)}>×</div>
-        <div className="logo-section" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2rem' }}>
-           <img src="/company_logo.jpg" alt="Delta UPVC" className="company-logo" style={{ height: '60px', width: 'auto', marginBottom: '1rem' }} />
-           <h2 className="logo-text" style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, letterSpacing: '1px' }}>DELTA UPVC</h2>
-           <span className="logo-subtitle" style={{ fontSize: '0.8rem', opacity: 0.8, letterSpacing: '2px' }}>WINDOWS</span>
-        </div>
-        
-        <div className="nav-group">
-           <div className={`nav-item ${currentView === 'Overview' ? 'active' : ''}`} onClick={() => { setCurrentView('Overview'); setFocusedTask(null); setSidebarOpen(false); }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-              Overview
-           </div>
-
-           <div className={`nav-item ${currentView === 'Reports' ? 'active' : ''}`} onClick={() => { setCurrentView('Reports'); setFocusedTask(null); setSidebarOpen(false); }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
-              Reports
-           </div>
-           {user.role !== 'Manager' && (
-              <div className="nav-item" onClick={() => setShowAddTaskModal(true)}>
-                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                 Log Visit
-              </div>
-           )}
-           {(user.role === 'CEO' || user.role === 'Manager') && (
-             <>
-                <div className={`nav-item ${currentView === 'Leads' ? 'active' : ''}`} onClick={() => { setCurrentView('Leads'); setFocusedTask(null); setSidebarOpen(false); }}>
-                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                   Leads
-                </div>
-                <div className="nav-item" onClick={() => setShowAddUserModal(true)}>
-                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                   Add Staff
-                </div>
-             </>
-           )}
-        </div>
-        
-        <div className="bottom-menu">
-           <a href="#" onClick={onLogout} style={{color: '#ef4444'}}><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5a2 2 0 0 0-2 2v4h2V5h14v14H5v-4H3v4a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg> Logout</a>
-        </div>
-      </Sidebar>
-
-      <MainArea>
-         <TopNav>
-            <div className="burger-toggle" onClick={() => setSidebarOpen(true)}>
-               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-            </div>
-            <div className="nav-links">
-               <span className={currentView === 'Overview' && !selectedProfile ? 'active' : ''} onClick={() => {setCurrentView('Overview'); setSelectedProfile(null);}}>Dashboard</span>
-               <span className={currentView === 'Reports' ? 'active' : ''} onClick={() => {setCurrentView('Reports'); setSelectedProfile(null);}}>Reports</span>
-            </div>
-            <div className="user-profile" onClick={() => navToProfile(me)}>
-               <div className="avatar">
-                  {me.profile_pic ? <img src={me.profile_pic} alt="dp" /> : user.role[0]}
+   const renderAttendance = () => {
+      return (
+         <div className="attendance-view" style={{ paddingBottom: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+               <div>
+                  <h1 style={{ margin: 0, fontSize: '1.8rem', color: '#111827' }}>Attendance Ledger</h1>
+                  <p style={{ color: '#6b7280', margin: '0.5rem 0 0 0' }}>Daily clock-in & clock-out logs for all enterprise team members.</p>
                </div>
-               <div className="user-info">
-                  <span className="name">{me.name || user.admin || user.username}</span>
-                  <span className="role">{user.role}</span>
+               <div style={{ background: 'white', padding: '0.8rem 1.2rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#374151' }}>Select Log Date:</label>
+                  <input
+                     type="date"
+                     value={attendanceFilter}
+                     onChange={(e) => setAttendanceFilter(e.target.value)}
+                     style={{ border: '1px solid #e5e7eb', padding: '0.4rem 0.6rem', borderRadius: '6px', outline: 'none', fontSize: '0.9rem' }}
+                  />
                </div>
             </div>
-         </TopNav>
 
-         <Content>
-            {/* BACKGROUND TRACKER FOR EMPLOYEES */}
-            {user.role !== 'CEO' && <EmployeeTracker username={user.username} />}
+            <div className="a-card wide" style={{ padding: 0, overflow: 'hidden' }}>
+               <div className="table-responsive">
+                  <table className="modern-table">
+                     <thead>
+                        <tr>
+                           <th>Staff Member</th>
+                           <th>Entry Time</th>
+                           <th>Exit Time</th>
+                           <th>Total Hours</th>
+                           <th>Selfie</th>
+                           <th>Shift Status</th>
+                           <th>Date</th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                        {attendanceLogs.length === 0 ? (
+                           <tr><td colSpan="7" className="empty-state" style={{ padding: '4rem' }}>No clocking activity recorded for this date.</td></tr>
+                        ) : attendanceLogs.map((log, i) => (
+                           <tr key={i}>
+                              <td className="bold" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                                 <div className="sl-avatar" style={{ width: '32px', height: '32px', fontSize: '0.8rem', margin: 0, background: '#f3f4f6', color: '#111827' }}>{log.name ? log.name[0] : '?'}</div>
+                                 {log.name || 'Unknown Staff'}
+                              </td>
+                              <td style={{ color: '#10b981', fontWeight: 600 }}>{log.clock_in || '--:--'}</td>
+                              <td style={{ color: '#ef4444', fontWeight: 600 }}>{log.clock_out || '--:--'}</td>
+                              <td style={{ fontWeight: 700, color: '#111827' }}>{log.clock_out ? `${calculateHoursWorked(log.clock_in, log.clock_out)} HR` : '--'}</td>
+                              <td>
+                                 <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                    {log.clock_in_selfie && (
+                                       <button 
+                                          onClick={() => setViewingSelfie(log.clock_in_selfie)}
+                                          style={{ background: '#10b981', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', color:'white', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 2px 4px rgba(16,185,129,0.2)' }}
+                                          title="View Clock-in Selfie"
+                                       >
+                                          <EyeIcon show={false} />
+                                       </button>
+                                    )}
+                                    {log.clock_out_selfie && (
+                                       <button 
+                                          onClick={() => setViewingSelfie(log.clock_out_selfie)}
+                                          style={{ background: '#ef4444', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', color:'white', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 2px 4px rgba(239,68,68,0.2)' }}
+                                          title="View Clock-out Selfie"
+                                       >
+                                          <EyeIcon show={false} />
+                                       </button>
+                                    )}
+                                 </div>
+                              </td>
+                              <td>
+                                 {(() => {
+                                    const hours = log.clock_out ? parseFloat(calculateHoursWorked(log.clock_in, log.clock_out)) : 0;
+                                    const isComplete = hours >= 7;
+                                    const isOngoing = log.clock_in && !log.clock_out;
 
-            {/* DETAIL VIEW CONTENT */}
-            {focusedTask && (
-               <TaskDetailView 
-                  task={focusedTask} 
-                  onBack={() => setFocusedTask(null)} 
-               />
-            )}
+                                    let label = "NO LOG";
+                                    let bg = "#f3f4f6";
+                                    let text = "#374151";
 
+                                    if (isOngoing) {
+                                       label = "SHIFT ACTIVE"; bg = "#fffbeb"; text = "#f59e0b";
+                                    } else if (log.clock_out) {
+                                       if (isComplete) {
+                                          label = "COMPLETED (7HR+)"; bg = "#ecfdf5"; text = "#10b981";
+                                       } else {
+                                          label = "UNDER HOURS"; bg = "#fff1f2"; text = "#ef4444";
+                                       }
+                                    }
 
-            {/* STAFF TRACKER LIST VIEW */}
-            {currentView === 'Tracker' && !focusedTask && <StaffTracker />}
-            {currentView === 'Overview' && !selectedProfile && !focusedTask && (
-               <>
-                  <div className="greeting">
-                     <h1>Good Morning, {me.name?.split(' ')[0] || user.admin || user.username}</h1>
-                     <p>Stay on top of your tasks, monitor progress, and track status.</p>
-                  </div>
-
-                  <div className="metrics-grid">
-                     {/* 1. Profile / Meter Card */}
-                     <MetricCard className="profile-metric" onClick={() => navToProfile(me)} style={{cursor: 'pointer'}}>
-                        <div className="metric-header" style={{marginBottom: 0}}>
-                           <h3>Your Profile</h3>
-                           <span className="icon-btn">View full ➔</span>
-                        </div>
-                        <div className="profile-summary">
-                           <div className="huge-avatar">
-                              {topEmp && topEmp.username === me.username && <div className="p-crown" style={{top: '-8px', right: '-8px', fontSize: '1rem'}}>👑</div>}
-                              {me.profile_pic ? <img src={me.profile_pic} alt="dp" /> : user.role[0]}
-                           </div>
-                           <div className="profile-data">
-                              <h4>{me.name}</h4>
-                              <div className="badge">{user.role}</div>
-                              <p>{me.gender && `${me.gender} • `}{me.dob && `Born ${me.dob}`}</p>
-                           </div>
-                        </div>
-                        {(user.role !== 'Manager' && user.role !== 'CEO') && (
-                           <div className="level-box">
-                              <div className="level-flex">
-                                 <span>Level {calculateLevel(currentPoints)}</span>
-                                 <span>{currentPoints} Pts</span>
-                              </div>
-                              <div className="progress-bar">
-                                 <div className="progress-fill" style={{width: `${getProgress(currentPoints)}%`}}></div>
-                              </div>
-                              <p className="hint">Next Level at {(calculateLevel(currentPoints)) * 70} Pts (Req: 70)</p>
-                           </div>
-                        )}
-                     </MetricCard>
-
-                     <MetricCard className="green-gradient">
-                        <div className="metric-header">
-                           <h3 style={{color: 'white'}}>{user.role === 'CEO' ? 'Total Logistics' : 'Active Leads Logged'}</h3>
-                           <span className="card-icon">📋</span>
-                        </div>
-                        <h2>{displayedTasks.length}</h2>
-                        <div className="trend" style={{color: 'white'}}>System metrics flowing</div>
-                     </MetricCard>
-
-                     <MetricCard>
-                        <div className="metric-header">
-                           <h3>Network Strength</h3>
-                           <span className="card-icon">🏢</span>
-                        </div>
-                        <h2>{users.length} Staff</h2>
-                        <div className="trend up" style={{color: '#10b981'}}>Across Delta UPVC</div>
-                     </MetricCard>
-                  </div>
-
-                  {user.role === 'CEO' && (
-                     <div className="ceo-overview">
-                       <h2>Company Workforce</h2>
-                       <div className="employee-list">
-                          {users.filter(u => u.role !== 'CEO').map(staff => {
-                             const isLeader = topEmp && topEmp.username === staff.username;
-                             return (
-                             <div className="staff-pill" key={staff.username} onClick={() => navToProfile(staff)}>
-                                {isLeader && <span className="p-crown" style={{position:'absolute', marginTop:'-25px', marginLeft:'-5px', fontSize:'14px'}}>👑</span>}
-                                <img src={staff.profile_pic || 'https://i.pravatar.cc/150'} alt="avatar" style={isLeader ? {border: '2px solid #fbbf24'} : {}} />
-                                <div className="staff-details">
-                                   <strong>{staff.name || staff.username}</strong>
-                                   <span>{fetchUserPoints(staff.username)} Pts</span>
-                                </div>
-                             </div>
-                          )})}
-                       </div>
-                     </div>
-                  )}
-
-                  <div className="table-section">
-                     <div className="table-header">
-                        <h2>Recent Activities</h2>
-                        <div className="table-actions">
-                           <button className="primary-btn" onClick={() => setShowAddTaskModal(true)}>+ Log Visit</button>
-                        </div>
-                     </div>
-                     <div className="table-responsive">
-                        <table className="modern-table">
-                           <thead><tr><th>Submit Date</th><th>Activity Details</th><th>Assigned Staff</th><th>Customer INFO</th><th>Status</th><th>Actions</th></tr></thead>
-                           <tbody>
-                              {displayedTasks.map((t, i) => (
-                                 <tr key={i} onClick={() => setFocusedTask(t)} style={{cursor: 'pointer'}}>
-                                    <td className="date-col">{t.submission_date || 'Today'}</td>
-                                    <td className="bold">{t.task}</td>
-                                    <td className="emp-col" onClick={(e) => {
-                                       e.stopPropagation();
-                                       const emp = users.find(u => u.username === t.assignee);
-                                       if(emp) navToProfile(emp);
-                                    }} style={{cursor:'pointer'}}>@{t.assignee}</td>
-                                    <td className="info-col">{t.deadline}</td>
-                                    <td onClick={(e) => e.stopPropagation()}>
-                                       {(user.role === 'CEO' || user.role === 'Manager') ? (
-                                       <select className={`status-pill ${t.status.toLowerCase()}`} value={t.status} onChange={(e) => handleUpdateTaskStatus(t._id, e.target.value)}>
-                                          <option value="Pending">Pending</option><option value="Processing">Processing</option><option value="Delivered">Delivered</option>
-                                       </select>
-                                       ) : (<span className={`status-pill ${t.status.toLowerCase()}`}>● {t.status}</span>)}
-                                    </td>
-                                    <td style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-                                        <button className="action-toggle" onClick={() => setActiveTaskMenu(activeTaskMenu === t._id ? null : t._id)}>
-                                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
-                                          </svg>
-                                        </button>
-                                        {activeTaskMenu === t._id && (
-                                          <TaskActionMenu 
-                                            onEdit={() => handleEditTaskInit(t)}
-                                            onDelete={() => handleDeleteTask(t._id)}
-                                            onClose={() => setActiveTaskMenu(null)}
-                                          />
-                                        )}
-                                     </td>
-                                 </tr>
-                              ))}
-                              {displayedTasks.length === 0 && <tr><td colSpan="6" className="empty-state">No recent activities found in your network.</td></tr>}
-                           </tbody>
-                        </table>
-                     </div>
-                  </div>
-               </>
-            )}
-
-            {/* ANALYTICS VIEW */}
-            {currentView === 'Reports' && !selectedProfile && renderAnalytics()}
-
-            {/* LEADS VIEW */}
-            {currentView === 'Leads' && (user.role === 'CEO' || user.role === 'Manager') && renderLeads()}
-
-            {/* PROFILE VIEW */}
-            {currentView === 'Profile' && selectedProfile && renderProfile()}
-
-         </Content>
-      </MainArea>
-
-      {/* MODALS */}
-      {(showAddTaskModal || showAddUserModal || showEditModal) && (
-         <div className="modal-overlay">
-            <div className="modal-card">
-               <h2>{showAddTaskModal ? (editingTask ? 'Edit Site Log' : 'Log Site Visit') : showAddUserModal ? 'Add New Staff' : 'Edit Profile'}</h2>
-               {showAddTaskModal && (
-                  <form onSubmit={handleAddSiteLog}>
-                     <div className="input-group"><label>Customer/Site Name</label><input type="text" value={siteName} onChange={(e) => setSiteName(e.target.value)} required placeholder="Ramesh Residence" /></div>
-                     <div className="input-group mt"><label>Phone Number</label><input type="text" value={sitePhone} onChange={(e) => setSitePhone(e.target.value.replace(/\D/g, '').slice(0, 10))} required placeholder="9876543210" /></div>
-                     <div className="input-group mt"><label>Site Request Overview</label><input type="text" value={siteDesc} onChange={(e) => setSiteDesc(e.target.value)} required placeholder="Need 4 sliding windows" /></div>
-                     <div className="grid-2 mt">
-                        <div className="input-group"><label>Task Created Date (Gauge Sync)</label><input type="date" value={taskCreatedDate} onChange={(e) => setTaskCreatedDate(e.target.value)} required /></div>
-                        <div className="input-group"><label>Submission Date</label><input type="date" value={submissionDate} onChange={(e) => setSubmissionDate(e.target.value)} required /></div>
-                     </div>
-                     <div className="modal-actions mt">
-                        <button type="button" className="btn-cancel" onClick={() => { setShowAddTaskModal(false); setEditingTask(null); }}>Cancel</button>
-                        <button type="submit" className="btn-submit">{editingTask ? 'Apply Changes' : 'Submit Details'}</button>
-                     </div>
-                  </form>
-               )}
-               {(showAddUserModal || showEditModal) && (
-                  <form onSubmit={showEditModal ? handleUpdateUser : handleAddUser}>
-                     <div className="grid-2 mt">
-                        <div className="input-group"><label>Full Name</label><input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} required={!showEditModal}/></div>
-                        <div className="input-group"><label>Phone</label><input type="text" value={newPhone} onChange={(e) => setNewPhone(e.target.value.replace(/\D/g, '').slice(0, 10))} required={!showEditModal}/></div>
-                        <div className="input-group"><label>Email</label><input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} /></div>
-                        <div className="input-group"><label>Username</label><input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} required readOnly={showEditModal}/></div>
-                        <div className="input-group"><label>Password {showEditModal && '(leave blank to map old)'}</label><input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required={!showEditModal}/></div>
-                        <div className="input-group"><label>Role / Level</label><select value={newRole} onChange={(e) => setNewRole(e.target.value)} disabled={showEditModal && user.role !== 'CEO'}><option value="Employe">Employe</option><option value="Manager">Manager</option><option value="CEO">CEO</option></select></div>
-                        <div className="input-group"><label>Gender</label><select value={newGender} onChange={(e) => setNewGender(e.target.value)}><option value="">Select...</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
-                        <div className="input-group"><label>Date of Birth</label><input type="date" value={newDob} onChange={(e) => setNewDob(e.target.value)}/></div>
-                     </div>
-                     <div className="input-group mt"><label>Profile Picture (Max 8MB)</label><input type="file" accept="image/*" onChange={handleImageUpload} />{newProfilePic && <img src={newProfilePic} style={{marginTop: '10px', height: '60px', width: '60px', borderRadius: '50%', objectFit: 'cover'}} alt="preview"/>}</div>
-                     <div className="modal-actions mt"><button type="button" className="btn-cancel" onClick={() => {setShowAddUserModal(false); setShowEditModal(false); clearForm();}}>Cancel</button><button type="submit" className="btn-submit">{showEditModal ? 'Update Profile' : 'Add Employee'}</button></div>
-                  </form>
-               )}
+                                    return (
+                                       <span style={{ padding: '0.3rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700, background: bg, color: text }}>
+                                          {label}
+                                       </span>
+                                    );
+                                 })()}
+                              </td>
+                              <td style={{ fontSize: '0.85rem', color: '#6b7280' }}>{log.date}</td>
+                           </tr>
+                        ))}
+                     </tbody>
+                  </table>
+               </div>
             </div>
          </div>
-      )}
-       {itemToDelete && (
-         <DeleteConfirmPopup 
-            onConfirm={confirmDelete} 
-            onCancel={() => setItemToDelete(null)} 
-            title="Remove Activity Log?"
-            description="Are you sure you want to permanently delete this task record from the cloud database?"
-         />
-      )}
-   </DLayout>
-  );
+      );
+   };
+
+   // PROFILE COMPONENT
+   const renderProfile = () => {
+      if (!selectedProfile) return null;
+      const pUser = selectedProfile;
+      const pPts = fetchUserPoints(pUser.username);
+      const pLvl = calculateLevel(pPts);
+      const isTopEMP = topEmp && topEmp.username === pUser.username;
+      const tList = tasks.filter(t => t.assignee === pUser.username);
+
+      return (
+         <div style={{ position: 'relative' }}>
+            <button className="p-back-btn" onClick={() => { setCurrentView('Overview'); setSelectedProfile(null); }}>
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+               Back
+            </button>
+            <ProfileLayout>
+               <div className="prof-left">
+                  <div className="p-banner green-gradient"></div>
+                  <div className="p-info">
+                     <div className="p-avatar-wrap">
+                        {isTopEMP && <div className="p-crown">👑</div>}
+                        <img src={pUser.profile_pic || 'https://i.pravatar.cc/150'} alt="dp" />
+                     </div>
+                     <h2>{pUser.name || pUser.username} <span className="p-badge">{pUser.role}</span></h2>
+                     <div className="p-skills"><span className="sk">Delta Certified</span><span className="sk">Level {pLvl}</span></div>
+
+                     <div className="p-details">
+                        <div className="pd-row"><span>Location</span><strong>Network</strong></div>
+                        <div className="pd-row"><span>Gender</span><strong>{pUser.gender || 'N/A'}</strong></div>
+                        <div className="pd-row"><span>DOB</span><strong>{pUser.dob || 'N/A'}</strong></div>
+                     </div>
+
+                     {(user.role === 'CEO' || me.username === pUser.username) && (
+                        <button className="primary-btn mt-full" onClick={() => handleEditInit(pUser)}>Edit Settings</button>
+                     )}
+                  </div>
+               </div>
+
+               <div className="prof-right">
+                  <div className="p-stats-grid">
+                     <div className="p-stat-box"><strong>92%</strong><span>Ability</span></div>
+                     <div className="p-stat-box"><strong>98%</strong><span>Availability</span></div>
+                     <div className="p-stat-box"><strong>Level {pLvl}</strong><span>Aspect Score</span></div>
+                  </div>
+
+                  <div className="arc-section">
+                     <div className="arc-left">
+                        <h3>Aspect Score</h3>
+                        <p>Total workflow point evaluation</p>
+                     </div>
+                     <div className="arc-visual">
+                        <svg viewBox="0 0 36 36" className="circular-chart green">
+                           <path className="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                           <path className="circle" strokeDasharray={`${Math.min((pPts / 1000) * 100, 100)}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        </svg>
+                        <div className="arc-text">{pPts}</div>
+                     </div>
+                  </div>
+
+                  <div className="active-interviews">
+                     <h3>Active Output</h3>
+                     <div className="active-output-list">
+                        {tList.length === 0 ? <p className="empty-txt">No active tasks.</p> : tList.map((t, i) => (
+                           <div className="pt-row clickable" key={i} onClick={() => setFocusedTask(t)}>
+                              <strong>{t.task}</strong>
+                              <span className={`status-pill ${t.status.toLowerCase()}`}>{t.status}</span>
+                           </div>
+                        ))}
+                     </div>
+                  </div>
+               </div>
+            </ProfileLayout>
+         </div>
+      );
+   };
+
+   return (
+      <DLayout>
+         {toast.visible && <ToastPopup title={toast.title} message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />}
+
+         {/* SIDEBAR */}
+         <Sidebar className={sidebarOpen ? 'open' : ''}>
+            <div className="mobile-close" onClick={() => setSidebarOpen(false)}>×</div>
+            <div className="logo-section" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2rem' }}>
+               <img src="/company_logo.jpg" alt="Delta UPVC" className="company-logo" style={{ height: '60px', width: 'auto', marginBottom: '1rem' }} />
+               <h2 className="logo-text" style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, letterSpacing: '1px' }}>DELTA UPVC</h2>
+               <span className="logo-subtitle" style={{ fontSize: '0.8rem', opacity: 0.8, letterSpacing: '2px' }}>WINDOWS</span>
+            </div>
+
+            <div className="nav-group">
+               <div className={`nav-item ${currentView === 'Overview' ? 'active' : ''}`} onClick={() => { setCurrentView('Overview'); setFocusedTask(null); setSidebarOpen(false); }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>
+                  Overview
+               </div>
+
+               <div className={`nav-item ${currentView === 'Reports' ? 'active' : ''}`} onClick={() => { setCurrentView('Reports'); setFocusedTask(null); setSidebarOpen(false); }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" /></svg>
+                  Reports
+               </div>
+               {user.role !== 'Manager' && (
+                  <div className="nav-item" onClick={() => setShowAddTaskModal(true)}>
+                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg>
+                     Log Visit
+                  </div>
+               )}
+               {(user.role === 'CEO' || user.role === 'Manager') && (
+                  <>
+                     <div className={`nav-item ${currentView === 'Leads' ? 'active' : ''}`} onClick={() => { setCurrentView('Leads'); setFocusedTask(null); setSidebarOpen(false); }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
+                        Leads
+                     </div>
+                     <div className={`nav-item ${currentView === 'Attendance' ? 'active' : ''}`} onClick={() => { setCurrentView('Attendance'); setFocusedTask(null); setSidebarOpen(false); }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                        Attendance
+                     </div>
+                     <div className="nav-item" onClick={() => setShowAddUserModal(true)}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
+                        Add Staff
+                     </div>
+                  </>
+               )}
+            </div>
+
+            <div className="bottom-menu">
+               <a href="#" onClick={onLogout} style={{ color: '#ef4444' }}><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5a2 2 0 0 0-2 2v4h2V5h14v14H5v-4H3v4a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" /></svg> Logout</a>
+            </div>
+         </Sidebar>
+
+         <MainArea>
+            <TopNav>
+               <div className="burger-toggle" onClick={() => setSidebarOpen(true)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+               </div>
+               <div className="nav-links">
+                  <span className={currentView === 'Overview' && !selectedProfile ? 'active' : ''} onClick={() => { setCurrentView('Overview'); setSelectedProfile(null); }}>Dashboard</span>
+                  <span className={currentView === 'Reports' ? 'active' : ''} onClick={() => { setCurrentView('Reports'); setSelectedProfile(null); }}>Reports</span>
+               </div>
+               <div className="user-profile" onClick={() => navToProfile(me)}>
+                  <div className="avatar">
+                     {me.profile_pic ? <img src={me.profile_pic} alt="dp" /> : user.role[0]}
+                  </div>
+                  <div className="user-info">
+                     <span className="name">{me.name || user.admin || user.username}</span>
+                     <span className="role">{user.role}</span>
+                  </div>
+               </div>
+            </TopNav>
+
+            <Content>
+               {/* BACKGROUND TRACKER FOR EMPLOYEES */}
+               {user.role !== 'CEO' && <EmployeeTracker username={user.username} />}
+
+               {/* DETAIL VIEW CONTENT */}
+               {focusedTask && (
+                  <TaskDetailView
+                     task={focusedTask}
+                     onBack={() => setFocusedTask(null)}
+                  />
+               )}
+
+
+               {/* STAFF TRACKER LIST VIEW */}
+               {currentView === 'Tracker' && !focusedTask && <StaffTracker />}
+               {currentView === 'Overview' && !selectedProfile && !focusedTask && (
+                  <>
+                     <div className="greeting">
+                        <h1>Good Morning, {me.name?.split(' ')[0] || user.admin || user.username}</h1>
+                        <p>Stay on top of your tasks, monitor progress, and track status.</p>
+                     </div>
+
+                     <div className="metrics-grid">
+                        {/* 1. Profile / Meter Card */}
+                        <MetricCard className="profile-metric" onClick={() => navToProfile(me)} style={{ cursor: 'pointer' }}>
+                           <div className="metric-header" style={{ marginBottom: 0 }}>
+                              <h3>Your Profile</h3>
+                              <span className="icon-btn">View full ➔</span>
+                           </div>
+                           <div className="profile-summary">
+                              <div className="huge-avatar">
+                                 {topEmp && topEmp.username === me.username && <div className="p-crown" style={{ top: '-8px', right: '-8px', fontSize: '1rem' }}>👑</div>}
+                                 {me.profile_pic ? <img src={me.profile_pic} alt="dp" /> : user.role[0]}
+                              </div>
+                              <div className="profile-data">
+                                 <h4>{me.name}</h4>
+                                 <div className="badge">{user.role}</div>
+                                 <p>{me.gender && `${me.gender} • `}{me.dob && `Born ${me.dob}`}</p>
+                              </div>
+                           </div>
+                           {(user.role !== 'Manager' && user.role !== 'CEO') && (
+                              <>
+                                 <div className="level-box">
+                                    <div className="level-flex">
+                                       <span>Level {calculateLevel(currentPoints)}</span>
+                                       <span>{currentPoints} Pts</span>
+                                    </div>
+                                    <div className="progress-bar">
+                                       <div className="progress-fill" style={{ width: `${getProgress(currentPoints)}%` }}></div>
+                                    </div>
+                                    <p className="hint">Next Level at {(calculateLevel(currentPoints)) * 70} Pts (Req: 70)</p>
+                                 </div>
+                                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
+                                    <button
+                                       className="primary-btn"
+                                       style={{ flex: 1, background: me.attendance_status === 'online' ? '#111827' : '#10b981', fontSize: '0.75rem', padding: '0.6rem' }}
+                                       onClick={(e) => { e.stopPropagation(); handleAttendance('online'); }}
+                                       disabled={me.attendance_status === 'online'}
+                                    >
+                                       {me.attendance_status === 'online' ? '✅ Clocked In' : '🕒 Clock In'}
+                                    </button>
+                                    <button
+                                       className="btn-cancel"
+                                       style={{ flex: 1, fontSize: '0.75rem', padding: '0.6rem' }}
+                                       onClick={(e) => { e.stopPropagation(); handleAttendance('offline'); }}
+                                       disabled={me.attendance_status === 'offline' || !me.attendance_status}
+                                    >
+                                       Logout (Clock Out)
+                                    </button>
+                                 </div>
+                              </>
+                           )}
+                        </MetricCard>
+
+                        <MetricCard className="green-gradient">
+                           <div className="metric-header">
+                              <h3 style={{ color: 'white' }}>{user.role === 'CEO' ? 'Total Logistics' : 'Active Leads Logged'}</h3>
+                              <span className="card-icon">📋</span>
+                           </div>
+                           <h2>{displayedTasks.length}</h2>
+                           <div className="trend" style={{ color: 'white' }}>System metrics flowing</div>
+                        </MetricCard>
+
+                        <MetricCard>
+                           <div className="metric-header">
+                              <h3>Network Strength</h3>
+                              <span className="card-icon">🏢</span>
+                           </div>
+                           <h2>{users.length} Staff</h2>
+                           <div className="trend up" style={{ color: '#10b981' }}>Across Delta UPVC</div>
+                        </MetricCard>
+                     </div>
+
+                     {user.role === 'CEO' && (
+                        <div className="ceo-overview">
+                           <h2>Company Workforce</h2>
+                           <div className="employee-list">
+                              {users.filter(u => u.role !== 'CEO').map(staff => {
+                                 const isLeader = topEmp && topEmp.username === staff.username;
+                                 return (
+                                    <div className="staff-pill" key={staff.username} onClick={() => navToProfile(staff)}>
+                                       {isLeader && <span className="p-crown" style={{ position: 'absolute', marginTop: '-25px', marginLeft: '-5px', fontSize: '14px' }}>👑</span>}
+                                       <img src={staff.profile_pic || 'https://i.pravatar.cc/150'} alt="avatar" style={isLeader ? { border: '2px solid #fbbf24' } : {}} />
+                                       <div className="staff-details">
+                                          <strong>{staff.name || staff.username}</strong>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                             <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: staff.attendance_status === 'online' ? '#10b981' : '#9ca3af' }}></div>
+                                             <span style={{ fontSize: '10px', color: staff.attendance_status === 'online' ? '#10b981' : '#6b7280', fontWeight: 700 }}>
+                                                {staff.attendance_status === 'online' ? 'ONLINE' : 'OFFLINE'}
+                                             </span>
+                                          </div>
+                                          <span>{fetchUserPoints(staff.username)} Pts</span>
+                                       </div>
+                                    </div>
+                                 )
+                              })}
+                           </div>
+                        </div>
+                     )}
+
+                     <div className="table-section">
+                        <div className="table-header">
+                           <h2>Recent Activities</h2>
+                           <div className="table-actions">
+                              <button className="primary-btn" onClick={() => setShowAddTaskModal(true)}>+ Log Visit</button>
+                           </div>
+                        </div>
+                        <div className="table-responsive">
+                           <table className="modern-table">
+                              <thead><tr><th>Submit Date</th><th>Activity Details</th><th>Assigned Staff</th><th>Customer INFO</th><th>Status</th><th>Actions</th></tr></thead>
+                              <tbody>
+                                 {displayedTasks.map((t, i) => (
+                                    <tr key={i} onClick={() => setFocusedTask(t)} style={{ cursor: 'pointer' }}>
+                                       <td className="date-col">{t.submission_date || 'Today'}</td>
+                                       <td className="bold">{t.task}</td>
+                                       <td className="emp-col" onClick={(e) => {
+                                          e.stopPropagation();
+                                          const emp = users.find(u => u.username === t.assignee);
+                                          if (emp) navToProfile(emp);
+                                       }} style={{ cursor: 'pointer' }}>@{t.assignee}</td>
+                                       <td className="info-col">{t.deadline}</td>
+                                       <td onClick={(e) => e.stopPropagation()}>
+                                          {(user.role === 'CEO' || user.role === 'Manager') ? (
+                                             <select className={`status-pill ${t.status.toLowerCase()}`} value={t.status} onChange={(e) => handleUpdateTaskStatus(t._id, e.target.value)}>
+                                                <option value="Pending">Pending</option><option value="Processing">Processing</option><option value="Delivered">Delivered</option>
+                                             </select>
+                                          ) : (<span className={`status-pill ${t.status.toLowerCase()}`}>● {t.status}</span>)}
+                                       </td>
+                                       <td style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+                                          <button className="action-toggle" onClick={() => setActiveTaskMenu(activeTaskMenu === t._id ? null : t._id)}>
+                                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" />
+                                             </svg>
+                                          </button>
+                                          {activeTaskMenu === t._id && (
+                                             <TaskActionMenu
+                                                onEdit={() => handleEditTaskInit(t)}
+                                                onDelete={() => handleDeleteTask(t._id)}
+                                                onClose={() => setActiveTaskMenu(null)}
+                                             />
+                                          )}
+                                       </td>
+                                    </tr>
+                                 ))}
+                                 {displayedTasks.length === 0 && <tr><td colSpan="6" className="empty-state">No recent activities found in your network.</td></tr>}
+                              </tbody>
+                           </table>
+                        </div>
+                     </div>
+                  </>
+               )}
+
+               {/* ANALYTICS VIEW */}
+               {currentView === 'Reports' && !selectedProfile && renderAnalytics()}
+
+               {/* LEADS VIEW */}
+               {currentView === 'Leads' && (user.role === 'CEO' || user.role === 'Manager') && renderLeads()}
+
+               {/* ATTENDANCE LEDGER VIEW */}
+               {currentView === 'Attendance' && (user.role === 'CEO' || user.role === 'Manager') && renderAttendance()}
+
+               {/* PROFILE VIEW */}
+               {currentView === 'Profile' && selectedProfile && renderProfile()}
+
+            </Content>
+         </MainArea>
+
+         {/* SELFIE MODAL */}
+         {showSelfieModal && (
+            <div className="modal-overlay" style={{zIndex: 2000}}>
+               <div className="modal-card" style={{maxWidth: '400px', width: '90%'}}>
+                  <h2 style={{fontSize: '1.2rem', marginBottom: '0.5rem'}}>Selfie Verification</h2>
+                  <p style={{fontSize: '0.8rem', color: '#6b7280', marginBottom: '1.5rem'}}>Please maintain a clear face for {selfieType === 'online' ? 'Clock-In' : 'Clock-Out'}.</p>
+                  
+                  <div className="camera-box" style={{background: '#000', borderRadius: '12px', overflow: 'hidden', aspectRatio: '3/4', position: 'relative'}}>
+                     <video 
+                        id="selfieVideo" 
+                        autoPlay 
+                        playsInline 
+                        muted 
+                        style={{width: '100%', height: '100%', objectFit: 'cover'}}
+                     />
+                     {isCapturing && (
+                        <div style={{position:'absolute', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', color:'white'}}>
+                           Processing...
+                        </div>
+                     )}
+                  </div>
+
+                  <div className="modal-actions mt">
+                     <button 
+                        type="button" 
+                        className="btn-cancel" 
+                        onClick={() => {
+                           const v = document.getElementById('selfieVideo');
+                           if(v && v.srcObject) {
+                              v.srcObject.getTracks().forEach(t => t.stop());
+                           }
+                           setShowSelfieModal(false);
+                        }}
+                     >
+                        Cancel
+                     </button>
+                     <button 
+                        type="button" 
+                        className="primary-btn" 
+                        style={{flex: 1}}
+                        onClick={() => {
+                           const video = document.getElementById('selfieVideo');
+                           if (!video || !video.srcObject) {
+                              showToast("Wait", "Camera is not ready yet!");
+                              return;
+                           }
+                           const canvas = document.createElement('canvas');
+                           canvas.width = video.videoWidth;
+                           canvas.height = video.videoHeight;
+                           canvas.getContext('2d').drawImage(video, 0, 0);
+                           const base64 = canvas.toDataURL('image/jpeg', 0.6); // Slightly lower quality for network speed
+                           
+                           // Stop camera
+                           video.srcObject?.getTracks().forEach(t => t.stop());
+                           
+                           completeAttendanceWithSelfie(base64);
+                        }}
+                        disabled={isCapturing}
+                     >
+                        Capture & {selfieType === 'online' ? 'Clock In' : 'Clock Out'}
+                     </button>
+                  </div>
+               </div>
+            </div>
+         )}
+
+         {/* PHOTO POPUP VIEWER */}
+         {viewingSelfie && (
+            <div className="modal-overlay" style={{zIndex: 3000}} onClick={() => setViewingSelfie(null)}>
+               <div className="modal-card" style={{maxWidth: '450px', background:'transparent', boxShadow:'none', padding:0}}>
+                  <img src={viewingSelfie} style={{width: '100%', borderRadius: '12px', border: '4px solid white'}} alt="Selfie Log" />
+                  <p style={{color:'white', textAlign:'center', marginTop:'1rem', fontWeight:600}}>Selfie Audit Log (Captured in Cloud)</p>
+               </div>
+            </div>
+         )}
+
+         {/* MODALS */}
+         {(showAddTaskModal || showAddUserModal || showEditModal) && (
+            <div className="modal-overlay">
+               <div className="modal-card">
+                  <h2>{showAddTaskModal ? (editingTask ? 'Edit Site Log' : 'Log Site Visit') : showAddUserModal ? 'Add New Staff' : 'Edit Profile'}</h2>
+                  {showAddTaskModal && (
+                     <form onSubmit={handleAddSiteLog}>
+                        <div className="input-group"><label>Customer/Site Name</label><input type="text" value={siteName} onChange={(e) => setSiteName(e.target.value)} required placeholder="Ramesh Residence" /></div>
+                        <div className="input-group mt"><label>Phone Number</label><input type="text" value={sitePhone} onChange={(e) => setSitePhone(e.target.value.replace(/\D/g, '').slice(0, 10))} required placeholder="9876543210" /></div>
+                        <div className="input-group mt"><label>Site Request Overview</label><input type="text" value={siteDesc} onChange={(e) => setSiteDesc(e.target.value)} required placeholder="Need 4 sliding windows" /></div>
+                        <div className="grid-2 mt">
+                           <div className="input-group"><label>Task Created Date (Gauge Sync)</label><input type="date" value={taskCreatedDate} onChange={(e) => setTaskCreatedDate(e.target.value)} required /></div>
+                           <div className="input-group"><label>Submission Date</label><input type="date" value={submissionDate} onChange={(e) => setSubmissionDate(e.target.value)} required /></div>
+                        </div>
+                        <div className="modal-actions mt">
+                           <button type="button" className="btn-cancel" onClick={() => { setShowAddTaskModal(false); setEditingTask(null); }}>Cancel</button>
+                           <button type="submit" className="btn-submit">{editingTask ? 'Apply Changes' : 'Submit Details'}</button>
+                        </div>
+                     </form>
+                  )}
+                  {(showAddUserModal || showEditModal) && (
+                     <form onSubmit={showEditModal ? handleUpdateUser : handleAddUser}>
+                        <div className="grid-2 mt">
+                           <div className="input-group"><label>Full Name</label><input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} required={!showEditModal} /></div>
+                           <div className="input-group"><label>Phone</label><input type="text" value={newPhone} onChange={(e) => setNewPhone(e.target.value.replace(/\D/g, '').slice(0, 10))} required={!showEditModal} /></div>
+                           <div className="input-group"><label>Email</label><input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} /></div>
+                           <div className="input-group"><label>Username</label><input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} required readOnly={showEditModal} /></div>
+                           <div className="input-group"><label>Password {showEditModal && '(leave blank to map old)'}</label><input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required={!showEditModal} /></div>
+                           <div className="input-group"><label>Role / Level</label><select value={newRole} onChange={(e) => setNewRole(e.target.value)} disabled={showEditModal && user.role !== 'CEO'}><option value="Employe">Employe</option><option value="Manager">Manager</option><option value="CEO">CEO</option></select></div>
+                           <div className="input-group"><label>Gender</label><select value={newGender} onChange={(e) => setNewGender(e.target.value)}><option value="">Select...</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
+                           <div className="input-group"><label>Date of Birth</label><input type="date" value={newDob} onChange={(e) => setNewDob(e.target.value)} /></div>
+                        </div>
+                        <div className="input-group mt"><label>Profile Picture (Max 8MB)</label><input type="file" accept="image/*" onChange={handleImageUpload} />{newProfilePic && <img src={newProfilePic} style={{ marginTop: '10px', height: '60px', width: '60px', borderRadius: '50%', objectFit: 'cover' }} alt="preview" />}</div>
+                        <div className="modal-actions mt"><button type="button" className="btn-cancel" onClick={() => { setShowAddUserModal(false); setShowEditModal(false); clearForm(); }}>Cancel</button><button type="submit" className="btn-submit">{showEditModal ? 'Update Profile' : 'Add Employee'}</button></div>
+                     </form>
+                  )}
+               </div>
+            </div>
+         )}
+         {itemToDelete && (
+            <DeleteConfirmPopup
+               onConfirm={confirmDelete}
+               onCancel={() => setItemToDelete(null)}
+               title="Remove Activity Log?"
+               description="Are you sure you want to permanently delete this task record from the cloud database?"
+            />
+         )}
+      </DLayout>
+   );
 };
 
 // --- STYLING MACROS ---

@@ -79,6 +79,7 @@ admins_collection = db['admins']
 login_logs = db['login_logs'] # To store login history
 contacts_collection = db['contacts']
 system_logs = db['system_logs'] # For critical operational events
+attendance_logs = db['attendance_logs'] # Persistent clock-in/out history
 
 def log_system_event(event_type, message, user_identity="SYSTEM"):
     """Centralized logger for database-backed activity history"""
@@ -111,6 +112,7 @@ def add_task():
             "assignee": assignee,
             "deadline": deadline,
             "submission_date": submission_date,
+            "created_at_date": data.get('created_at_date', ''),
             "status": status,
             "created_at": datetime.datetime.now()
         })
@@ -418,6 +420,74 @@ def get_locations():
             {"_id": 0, "username": 1, "name": 1, "location": 1, "last_seen": 1, "role": 1, "profile_pic": 1}
         ))
         return jsonify(users)
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
+
+@app.route('/api/admin/attendance', methods=['POST'])
+def update_attendance():
+    """Handle Employee Clock-In/Out and store status + history + selfie"""
+    data = request.get_json()
+    username = data.get('username')
+    status = data.get('status') # 'online' or 'offline'
+    selfie = data.get('selfie', '') # Base64 image
+    now = datetime.datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
+    time_str = now.strftime("%H:%M:%S")
+    
+    if not username or not status:
+        return jsonify({"message": "Missing info"}), 400
+        
+    try:
+        # 1. Update Current Real-Time Status in admins
+        admins_collection.update_one(
+            {"username": username},
+            {"$set": {
+                "attendance_status": status,
+                "attendance_last_update": now
+            }}
+        )
+        
+        # 2. Log entry in persistent attendance_logs for historical view
+        if status == 'online':
+            # Record first clock-in for the day
+            attendance_logs.update_one(
+                {"username": username, "date": today_str},
+                {"$set": {"clock_in": time_str, "status": "online", "clock_in_selfie": selfie}},
+                upsert=True
+            )
+        else:
+            # Record last clock-out for the day
+            attendance_logs.update_one(
+                {"username": username, "date": today_str},
+                {"$set": {"clock_out": time_str, "status": "offline", "clock_out_selfie": selfie}}
+            )
+
+        msg = f"@[{username}] clocked {status} at {time_str} ({today_str}). Selfie captured!"
+        log_system_event("ATTENDANCE_CHANGE", msg, user_identity=username)
+        return jsonify({"message": msg, "status": "success"})
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
+
+@app.route('/api/admin/attendance_history', methods=['GET'])
+def get_attendance_history():
+    """Fetch attendance logs by date for CEO/Manager review"""
+    date_filter = request.args.get('date') # Format: YYYY-MM-DD
+    try:
+        query = {}
+        if date_filter:
+            query["date"] = date_filter
+            
+        logs = list(attendance_logs.find(query, {'_id': 0}).sort("date", -1))
+        
+        # Merge with user names for display clarity
+        for log in logs:
+            user = admins_collection.find_one({"username": log["username"]}, {"name": 1, "_id": 0})
+            if user:
+                log["name"] = user.get("name", log["username"])
+            else:
+                log["name"] = log["username"]
+
+        return jsonify(logs)
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
