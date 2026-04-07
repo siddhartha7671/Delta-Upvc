@@ -231,7 +231,7 @@ def submit_contact():
             "phone": phone,
             "email": email,
             "interest": interest,
-            "timestamp": now
+            "timestamp": now.strftime("%Y-%m-%d %H:%M:%S")
         }
         result = contacts_collection.insert_one(inquiry)
         
@@ -244,6 +244,15 @@ def submit_contact():
     except Exception as e:
         print(f"DATABASE ERROR: {e}")
         return jsonify({"message": "Cloud Storage Error.", "status": "error"}), 500
+
+@app.route('/api/admin/contacts', methods=['GET'])
+def get_contacts():
+    """Fetch all client inquiries for CEO/Manager review"""
+    try:
+        contacts = list(contacts_collection.find({}, {'_id': 0}).sort("timestamp", -1))
+        return jsonify(contacts)
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
 
 # --- ADMIN API: FETCH & UPDATE TASKS ---
 @app.route('/api/admin/tasks', methods=['GET'])

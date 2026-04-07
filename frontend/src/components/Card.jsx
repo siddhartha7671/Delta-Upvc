@@ -44,20 +44,22 @@ const StyledWrapper = styled.div`
   .container-items {
     display: flex;
     justify-content: center;
-    flex-wrap: nowrap;
-    gap: 20px; 
+    flex-wrap: wrap;
+    gap: 30px; 
     transform-style: preserve-3d;
     transform: perspective(1000px);
-    max-width: fit-content;
+    max-width: 1200px;
     padding: 30px;
     isolation: isolate;
+    width: 100%;
   }
 
   .item-color {
     position: relative;
     flex-shrink: 0;
-    width: 260px;
-    height: 320px;
+    width: 280px;
+    height: 350px;
+    margin-bottom: 20px;
     border: none;
     outline: none;
     background: transparent;

@@ -293,10 +293,53 @@ const StyledWrapper = styled.div`
   .signup-link a { color: #10b981; text-decoration: none; font-weight: 700; }
 
   @media (max-width: 768px) {
-    .login-card { flex-direction: column; }
-    .login-left { padding: 3rem 2rem; min-height: 250px; }
-    .login-right { padding: 2rem; }
-    .login-left h1 { font-size: 2.2rem; }
+    padding: 1rem;
+
+    .back-btn-container {
+      position: absolute;
+      top: 1.5rem;
+      left: 1rem;
+      z-index: 1000;
+      width: auto !important;
+      margin-bottom: 0 !important;
+    }
+
+    .login-card {
+      margin-top: 4rem;
+      flex-direction: column;
+      box-shadow: none;
+      border-radius: 0;
+    }
+
+    .login-left {
+      padding: 3rem 1.5rem;
+      min-height: auto;
+      text-align: center;
+      gap: 1.5rem;
+    }
+
+    .login-left h1 { font-size: 1.8rem; }
+    .logo-container .logo { flex-direction: column; gap: 0.5rem !important; }
+    .logo-container span { font-size: 1.2rem !important; text-align: center; }
+
+    .login-right {
+      padding: 2.5rem 1.5rem;
+      align-items: center;
+    }
+
+    .login-form {
+      max-width: 100%;
+    }
+
+    .input, .pass-wrapper {
+      max-width: 100%;
+    }
+
+    .form-heading {
+      font-size: 1.5rem;
+      margin-bottom: 25px;
+      text-align: center;
+    }
   }
 `;
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
+import { API_BASE_URL } from '../apiConfig';
 import TaskActionMenu from './TaskActionMenu';
 import DeleteConfirmPopup from './DeleteConfirmPopup';
 import TaskDetailView from './TaskDetailView';
@@ -78,11 +79,10 @@ const ToastPopup = ({ title, message, onClose }) => {
   );
 };
 
-import { API_BASE_URL } from '../apiConfig';
-
 const Dashboard = ({ user, onLogout, onHomeNav }) => {
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
+  const [inquiries, setInquiries] = useState([]);
   
   // Navigation State
   const [currentView, setCurrentView] = useState('Overview'); // 'Overview', 'Analytics', 'Profile'
@@ -97,6 +97,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [passVisible, setPassVisible] = useState(false);
   
   // Task Logic States
@@ -144,6 +145,9 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
   const fetchData = () => {
     fetch(`${API_BASE_URL}/admin/tasks`).then(r => r.json()).then(data => setTasks(data || []));
     fetch(`${API_BASE_URL}/admin/users`).then(r => r.json()).then(data => setUsers(data || []));
+    if(user.role === 'CEO' || user.role === 'Manager') {
+      fetch(`${API_BASE_URL}/admin/contacts`).then(r => r.json()).then(data => setInquiries(data || []));
+    }
   };
   
   const fetchUserPoints = (uname) => {
@@ -183,6 +187,9 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
 
   const me = users.find(u => u.username === (user.admin || user.username)) || {};
   const currentPoints = fetchUserPoints(me.username);
+  
+  // Filtering logic to ensure CEOs see all entries while staff see their own
+  const displayedTasks = (user.role === 'CEO' || user.role === 'Manager') ? tasks : tasks.filter(t => t.assignee === user.username || t.assignee === user.admin);
   
   const handleAddUser = (e) => {
     e.preventDefault();
@@ -281,15 +288,13 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
     setCurrentView('Profile');
   };
 
-  const displayedTasks = (user.role === 'CEO' || user.role === 'Manager') ? tasks : tasks.filter(t => t.assignee === (user.admin || user.username));
 
   // ANALYTICS COMPONENTS
   const renderAnalytics = () => {
-     const tList = (user.role === 'CEO' || user.role === 'Manager') ? tasks : tasks.filter(t => t.assignee === (user.admin || user.username));
-     const pending = tList.filter(t => t.status === 'Pending').length;
-     const processing = tList.filter(t => t.status === 'Processing').length;
-     const delivered = tList.filter(t => t.status === 'Delivered').length;
-     const total = tList.length || 1; 
+     const pending = displayedTasks.filter(t => t.status === 'Pending').length;
+     const processing = displayedTasks.filter(t => t.status === 'Processing').length;
+     const delivered = displayedTasks.filter(t => t.status === 'Delivered').length;
+     const total = displayedTasks.length || 1; 
 
      const generateGaugeData = (tasksList) => {
         const todayStr = new Date().toLocaleString('sv-SE').split(' ')[0];
@@ -313,14 +318,14 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
         return { count, percentage, trend, trendColor, todayStr };
      };
 
-     const gauge = generateGaugeData(tList);
+     const gauge = generateGaugeData(displayedTasks);
 
      return (
         <AnalyticsGrid>
            <div className="a-card wide">
               <h3>{user.role === 'CEO' ? 'Company Lead Funnel' : 'Your Lead Funnel'}</h3>
               <div className="funnel-stats">
-                 <div className="f-stat"><span className="val">{tList.length}</span><span className="lbl">Total Logs</span></div>
+                 <div className="f-stat"><span className="val">{displayedTasks.length}</span><span className="lbl">Total Logs</span></div>
                  <div className="f-stat"><span className="val">{Math.round(((processing+delivered)/total)*100)}%</span><span className="lbl">Action Rate</span></div>
                  <div className="f-stat"><span className="val" style={{color:'#10b981'}}>{Math.round((delivered/total)*100)}%</span><span className="lbl">Delivery Success</span></div>
               </div>
@@ -331,7 +336,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
               <div className="a-card" style={{flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
                  <h3 style={{margin: '0 0 0.5rem 0'}}>{user.role === 'CEO' ? 'Overall Productivity' : 'Performance Level'}</h3>
                  <div style={{fontSize: '2rem', fontWeight: 'bold', color: '#111827'}}>
-                    {user.role === 'CEO' ? `${tList.length} Tasks` : `Lv. ${calculateLevel(fetchUserPoints(me.username))}`}
+                    {user.role === 'CEO' ? `${displayedTasks.length} Tasks` : `Lv. ${calculateLevel(fetchUserPoints(me.username))}`}
                  </div>
                  <div style={{fontSize: '0.85rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.5rem'}}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
@@ -399,6 +404,61 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
            </div>
         </AnalyticsGrid>
      );
+  };
+
+  const renderLeads = () => {
+    return (
+      <div className="tracker-view">
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'2rem'}}>
+          <h1 style={{margin:0, fontSize:'1.8rem', color:'#111827'}}>Client Leads (Inquiries)</h1>
+          <div style={{background:'#ecfdf5', color:'#10b981', padding:'0.5rem 1rem', borderRadius:'2rem', fontSize:'0.8rem', fontWeight:800}}>
+            {inquiries.length} TOTAL LEADS
+          </div>
+        </div>
+        <div className="staff-tracker-grid">
+           {inquiries.length === 0 ? (
+             <div className="a-card wide" style={{gridColumn:'1/-1', textAlign:'center', padding:'4rem'}}>
+                <div style={{fontSize:'3rem', marginBottom:'1rem'}}>📩</div>
+                <h3>No Leads Yet</h3>
+                <p style={{color:'#6b7280'}}>When clients fill the contact form on your website, they will appear here instantly.</p>
+             </div>
+           ) : inquiries.map((lead, i) => (
+              <div key={i} className="staff-loc-card" style={{alignItems: 'flex-start', textAlign: 'left', padding: '1.5rem'}}>
+                 <div style={{display:'flex', gap:'1rem', alignItems:'center', marginBottom: '1.5rem', width:'100%'}}>
+                    <div className="sl-avatar" style={{marginBottom:0, width:'45px', height:'45px', fontSize:'1.1rem', background: '#10b981', color:'white'}}>{lead.interest[0]}</div>
+                    <div style={{flex:1}}>
+                       <h3 style={{margin:0, fontSize:'1.1rem'}}>{lead.name}</h3>
+                       <p style={{margin:0, color:'#10b981', fontWeight:600, fontSize:'0.85rem'}}>{lead.interest}</p>
+                    </div>
+                 </div>
+                 <div className="sl-info" style={{width:'100%'}}>
+                    <div style={{display:'flex', flexDirection:'column', gap:'0.8rem'}}>
+                       <p style={{margin:0, display:'flex', alignItems:'center', gap:'0.8rem', fontSize:'0.95rem', color:'#374151'}}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> 
+                          {lead.phone}
+                       </p>
+                       {lead.email && (
+                          <p style={{margin:0, display:'flex', alignItems:'center', gap:'0.8rem', fontSize:'0.95rem', color:'#374151'}}>
+                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> 
+                             {lead.email}
+                          </p>
+                       )}
+                       <p style={{margin:'0.5rem 0 0 0', fontSize:'0.75rem', color:'#9ca3af', fontWeight:600}}>RECEIVED: {lead.timestamp}</p>
+                    </div>
+                 </div>
+                 <a 
+                    href={`tel:${lead.phone}`} 
+                    className="btn-gmaps"
+                    style={{width:'100%', justifyContent:'center', background: '#111827', marginTop: '1.5rem', border:'none'}}
+                 >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    Call Client Now
+                 </a>
+              </div>
+           ))}
+        </div>
+      </div>
+    );
   };
 
   // PROFILE COMPONENT
@@ -520,7 +580,8 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
       {toast.visible && <ToastPopup title={toast.title} message={toast.message} onClose={() => setToast({...toast, visible: false})} />}
       
       {/* SIDEBAR */}
-      <Sidebar>
+      <Sidebar className={sidebarOpen ? 'open' : ''}>
+        <div className="mobile-close" onClick={() => setSidebarOpen(false)}>×</div>
         <div className="logo-section" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2rem' }}>
            <img src="/company_logo.jpg" alt="Delta UPVC" className="company-logo" style={{ height: '60px', width: 'auto', marginBottom: '1rem' }} />
            <h2 className="logo-text" style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, letterSpacing: '1px' }}>DELTA UPVC</h2>
@@ -528,29 +589,32 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
         </div>
         
         <div className="nav-group">
-           <div className={`nav-item ${currentView === 'Overview' ? 'active' : ''}`} onClick={() => { setCurrentView('Overview'); setFocusedTask(null); }}>
+           <div className={`nav-item ${currentView === 'Overview' ? 'active' : ''}`} onClick={() => { setCurrentView('Overview'); setFocusedTask(null); setSidebarOpen(false); }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
               Overview
            </div>
-           {user.role === 'Manager' && (
-              <div className={`nav-item ${currentView === 'Tracker' ? 'active' : ''}`} onClick={() => { setCurrentView('Tracker'); setFocusedTask(null); }}>
-                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                 Staff Tracker
-              </div>
-           )}
-           <div className={`nav-item ${currentView === 'Analytics' ? 'active' : ''}`} onClick={() => { setCurrentView('Analytics'); setFocusedTask(null); }}>
+
+           <div className={`nav-item ${currentView === 'Reports' ? 'active' : ''}`} onClick={() => { setCurrentView('Reports'); setFocusedTask(null); setSidebarOpen(false); }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
               Reports
            </div>
-           <div className="nav-item" onClick={() => setShowAddTaskModal(true)}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-              Log Visit
-           </div>
+           {user.role !== 'Manager' && (
+              <div className="nav-item" onClick={() => setShowAddTaskModal(true)}>
+                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                 Log Visit
+              </div>
+           )}
            {(user.role === 'CEO' || user.role === 'Manager') && (
-             <div className="nav-item" onClick={() => setShowAddUserModal(true)}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                Add Staff
-             </div>
+             <>
+                <div className={`nav-item ${currentView === 'Leads' ? 'active' : ''}`} onClick={() => { setCurrentView('Leads'); setFocusedTask(null); setSidebarOpen(false); }}>
+                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                   Leads
+                </div>
+                <div className="nav-item" onClick={() => setShowAddUserModal(true)}>
+                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                   Add Staff
+                </div>
+             </>
            )}
         </div>
         
@@ -561,9 +625,12 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
 
       <MainArea>
          <TopNav>
+            <div className="burger-toggle" onClick={() => setSidebarOpen(true)}>
+               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </div>
             <div className="nav-links">
                <span className={currentView === 'Overview' && !selectedProfile ? 'active' : ''} onClick={() => {setCurrentView('Overview'); setSelectedProfile(null);}}>Dashboard</span>
-               <span className={currentView === 'Analytics' ? 'active' : ''} onClick={() => {setCurrentView('Analytics'); setSelectedProfile(null);}}>Analytics</span>
+               <span className={currentView === 'Reports' ? 'active' : ''} onClick={() => {setCurrentView('Reports'); setSelectedProfile(null);}}>Reports</span>
             </div>
             <div className="user-profile" onClick={() => navToProfile(me)}>
                <div className="avatar">
@@ -616,16 +683,18 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                               <p>{me.gender && `${me.gender} • `}{me.dob && `Born ${me.dob}`}</p>
                            </div>
                         </div>
-                        <div className="level-box">
-                           <div className="level-flex">
-                              <span>Level {calculateLevel(currentPoints)}</span>
-                              <span>{currentPoints} Pts</span>
+                        {(user.role !== 'Manager' && user.role !== 'CEO') && (
+                           <div className="level-box">
+                              <div className="level-flex">
+                                 <span>Level {calculateLevel(currentPoints)}</span>
+                                 <span>{currentPoints} Pts</span>
+                              </div>
+                              <div className="progress-bar">
+                                 <div className="progress-fill" style={{width: `${getProgress(currentPoints)}%`}}></div>
+                              </div>
+                              <p className="hint">Next Level at {(calculateLevel(currentPoints)) * 70} Pts (Req: 70)</p>
                            </div>
-                           <div className="progress-bar">
-                              <div className="progress-fill" style={{width: `${getProgress(currentPoints)}%`}}></div>
-                           </div>
-                           <p className="hint">Next Level at {(calculateLevel(currentPoints)) * 70} Pts (Req: 70)</p>
-                        </div>
+                        )}
                      </MetricCard>
 
                      <MetricCard className="green-gradient">
@@ -720,7 +789,10 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
             )}
 
             {/* ANALYTICS VIEW */}
-            {currentView === 'Analytics' && !selectedProfile && renderAnalytics()}
+            {currentView === 'Reports' && !selectedProfile && renderAnalytics()}
+
+            {/* LEADS VIEW */}
+            {currentView === 'Leads' && (user.role === 'CEO' || user.role === 'Manager') && renderLeads()}
 
             {/* PROFILE VIEW */}
             {currentView === 'Profile' && selectedProfile && renderProfile()}
@@ -784,16 +856,34 @@ const DLayout = styled.div`
   display: flex; height: 100vh; width: 100vw; background-color: #f3f4f6; overflow: hidden; font-family: 'Inter', system-ui, sans-serif;
 
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 1000; display: flex; justify-content: center; align-items: center; }
-  .modal-card { background: white; padding: 2rem; border-radius: 1rem; width: 90%; max-width: 600px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); max-height: 90vh; overflow-y: auto; }
+  .modal-card { background: white; padding: 2rem; border-radius: 1rem; width: 95%; max-width: 600px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); max-height: 90vh; overflow-y: auto; }
+  
+  @media (max-width: 600px) {
+    .modal-card { padding: 1.5rem 1rem; }
+  }
+
   .modal-card h2 { margin-bottom: 1.5rem; color: #1f2937; font-size: 1.5rem; }
   .input-group { display: flex; flex-direction: column; gap: 0.4rem; }
   .input-group label { font-size: 0.8rem; font-weight: 600; color: #4b5563; }
-  .input-group input, .input-group select { padding: 0.7rem; border: 1px solid #d1d5db; border-radius: 0.5rem; outline: none; background: #f9fafb; transition: all 0.2s; }
+  .input-group input, .input-group select { padding: 0.7rem; border: 1px solid #d1d5db; border-radius: 0.5rem; outline: none; background: #f9fafb; transition: all 0.2s; font-size: 1rem; width: 100%; }
   .input-group input:focus, .input-group select:focus { border-color: #10b981; background: white; }
-  .mt { margin-top: 1rem; } .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .mt { margin-top: 1rem; } 
+  
+  .grid-2 { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 1rem; 
+  }
+
+  @media (max-width: 600px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .modal-actions { flex-direction: column-reverse; }
+    .modal-actions button { width: 100%; }
+  }
+
   .modal-actions { display: flex; gap: 1rem; justify-content: flex-end; }
-  .btn-cancel { padding: 0.6rem 1.2rem; border-radius: 0.5rem; border: none; background: #e5e7eb; color: #4b5563; cursor: pointer; font-weight: 600; }
-  .btn-submit { padding: 0.6rem 1.2rem; border-radius: 0.5rem; border: none; background: #10b981; color: white; cursor: pointer; font-weight: 600; }
+  .btn-cancel { padding: 0.8rem 1.2rem; border-radius: 0.5rem; border: none; background: #e5e7eb; color: #4b5563; cursor: pointer; font-weight: 600; min-height: 48px; }
+  .btn-submit { padding: 0.8rem 1.2rem; border-radius: 0.5rem; border: none; background: #10b981; color: white; cursor: pointer; font-weight: 600; min-height: 48px; }
 `;
 
 const Sidebar = styled.div`
@@ -848,13 +938,63 @@ const Sidebar = styled.div`
     &:hover { background: #fee2e2; }
     svg { width: 22px; height: 22px; fill: currentColor; }
   }
+
+  .mobile-close {
+    display: none;
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    font-size: 2rem;
+    color: #6b7280;
+    cursor: pointer;
+  }
+
+  @media (max-width: 768px) {
+    position: fixed;
+    top: 0; 
+    left: 0;
+    height: 100vh;
+    z-index: 2000;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 20px 0 50px rgba(0,0,0,0.1);
+
+    &.open {
+      transform: translateX(0);
+    }
+
+    .mobile-close {
+      display: block;
+    }
+  }
 `;
 
-const MainArea = styled.div` flex: 1; display: flex; flex-direction: column; overflow: hidden; `;
+const MainArea = styled.div` 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  overflow: hidden; 
+  background: #f9fafb;
+`;
 
 const TopNav = styled.div`
-  height: 70px; background: transparent; display: flex; align-items: center; justify-content: space-between; padding: 0 2rem;
+  height: 70px; background: white; display: flex; align-items: center; justify-content: space-between; padding: 0 2rem;
+  border-bottom: 1px solid #f3f4f6;
+
+  .burger-toggle {
+    display: none;
+    cursor: pointer;
+    color: #6b7280;
+  }
+
   .nav-links { display: flex; gap: 1.5rem; }
+  .nav-links span { color: #6b7280; font-weight: 500; cursor: pointer; transition: color 0.2s; }
+
+  @media (max-width: 768px) {
+     padding: 0 1rem;
+     .burger-toggle { display: block; }
+     .nav-links { display: none; }
+  }
   .nav-links span { color: #6b7280; font-weight: 500; cursor: pointer; transition: color 0.2s; }
   .nav-links span:hover { color: #111827; }
   .nav-links span.active { color: #10b981; font-weight: 600; }
@@ -907,6 +1047,34 @@ const Content = styled.div`
 
   .action-toggle { background: none; border: none; color: #6b7280; cursor: pointer; padding: 5px; border-radius: 5px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
   .action-toggle:hover { background: #f3f4f6; color: #111827; }
+
+  @media (max-width: 1024px) {
+    .metrics-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 768px) {
+    padding: 1.5rem 1rem;
+    
+    .greeting h1 { font-size: 1.5rem; }
+    .metrics-grid { grid-template-columns: 1fr; gap: 1rem; }
+    
+    .table-section { padding: 1rem; }
+    .modern-table th, .modern-table td { padding: 0.75rem; font-size: 0.8rem; }
+    
+    .ceo-overview { padding: 1rem; }
+    .employee-list { gap: 0.5rem; }
+  }
+
+  .tracker-view { padding: 1rem; animation: fadeIn 0.4s ease-out; }
+  .staff-tracker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
+  .staff-loc-card { background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; flex-direction: column; align-items: center; text-align: center; border: 1px solid #f3f4f6; transition: transform 0.2s; }
+  .staff-loc-card:hover { transform: translateY(-5px); border-color: #10b981; }
+  .sl-avatar { width: 60px; height: 60px; background: #ecfdf5; color: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; margin-bottom: 1rem; }
+  .sl-info h3 { margin: 0 0 0.5rem 0; font-size: 1.2rem; color: #111827; }
+  .sl-info p { margin: 0.2rem 0; font-size: 0.9rem; color: #6b7280; }
+  .last-seen { font-weight: 700; color: #10b981 !important; margin-top: 0.5rem; }
+  .btn-gmaps { margin-top: 1.5rem; display: flex; align-items: center; gap: 0.5rem; background: #111827; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: background 0.2s; }
+  .btn-gmaps:hover { background: #10b981; }
 `;
 
 const MetricCard = styled.div`
@@ -961,6 +1129,13 @@ const AnalyticsGrid = styled.div`
   .sb-row label { font-size: 0.9rem; font-weight: 600; color: #4b5563; }
   .sb-bg { width: 100%; height: 12px; background: #f3f4f6; border-radius: 10px; overflow: hidden; }
   .sb-fill { height: 100%; border-radius: 10px; transition: width 1s ease-out; }
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+    .pt-stat { grid-column: span 1; }
+    .funnel-stats { flex-wrap: wrap; gap: 1.5rem; }
+    .gauge-container { width: 100%; max-width: 300px; margin: 0 auto; }
+  }
 `;
 
 const ProfileLayout = styled.div`
@@ -1004,6 +1179,17 @@ const ProfileLayout = styled.div`
   .pt-row strong { font-size: 0.95rem; color: #1f2937; }
   
   @keyframes progress { 0% { stroke-dasharray: 0 100; } }
+
+    
+    .greeting h1 { font-size: 1.5rem; }
+    .metrics-grid { grid-template-columns: 1fr; gap: 1rem; }
+    
+    .table-section { padding: 1rem; }
+    .modern-table th, .modern-table td { padding: 0.75rem; font-size: 0.8rem; }
+    
+    .ceo-overview { padding: 1rem; }
+    .employee-list { gap: 0.5rem; }
+  }
 
   .tracker-view { padding: 1rem; animation: fadeIn 0.4s ease-out; }
   .staff-tracker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }

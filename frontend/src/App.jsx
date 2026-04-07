@@ -213,7 +213,7 @@ const ProductDetail = ({ product, onBack, onPortalNav, onContactNav, onTermsClic
     <div className="app-container">
       <Header onPortalNav={onPortalNav} onContactNav={onContactNav} activeNav="home" />
       <div className="product-detail-container">
-        <div style={{ marginBottom: '3rem' }}>
+        <div className="back-btn-corner">
           <AnimatedButton text="Back to Home" onClick={onBack} iconDirection="left" />
         </div>
         
