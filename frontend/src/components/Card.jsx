@@ -42,24 +42,30 @@ const StyledWrapper = styled.div`
   }
 
   .container-items {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 30px; 
-    transform-style: preserve-3d;
-    transform: perspective(1000px);
-    max-width: 1200px;
-    padding: 30px;
-    isolation: isolate;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 40px; 
+    max-width: 1280px;
+    padding: 40px;
     width: 100%;
+    justify-items: center;
+
+    @media (max-width: 1200px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    
+    @media (max-width: 650px) {
+      grid-template-columns: 1fr;
+    }
   }
 
   .item-color {
     position: relative;
     flex-shrink: 0;
-    width: 280px;
-    height: 350px;
-    margin-bottom: 20px;
+    width: 100%;
+    max-width: 320px;
+    height: 420px;
+    margin-bottom: 0px;
     border: none;
     outline: none;
     background: transparent;
@@ -69,6 +75,8 @@ const StyledWrapper = styled.div`
     transform: translate3d(0, 0, 0);
     backface-visibility: hidden;
     overflow: visible;
+    display: flex;
+    flex-direction: column;
     animation: cardPopup 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards;
 
     ${[...Array(6)].map((_, i) => `

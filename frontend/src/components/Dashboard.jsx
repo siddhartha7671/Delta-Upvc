@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import styled from 'styled-components';
 import { API_BASE_URL } from '../apiConfig';
 import TaskActionMenu from './TaskActionMenu';
@@ -80,7 +80,7 @@ const ToastPopup = ({ title, message, onClose }) => {
 };
 
 // VERSION CONTROL (Sync with Vercel)
-const CURRENT_VERSION = "1.1.0"; 
+const CURRENT_VERSION = "1.1.0";
 
 const Dashboard = ({ user, onLogout, onHomeNav }) => {
    const [tasks, setTasks] = useState([]);
@@ -89,6 +89,10 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
    const [newUpdateAvailable, setNewUpdateAvailable] = useState(false);
    const [attendanceLogs, setAttendanceLogs] = useState([]);
    const [attendanceFilter, setAttendanceFilter] = useState(new Date().toLocaleString('sv-SE').split(' ')[0]);
+   const [localStatus, setLocalStatus] = useState(user.attendance_status || 'offline');
+   const lastSignalMinute = useRef(""); // Track minute-level duplicates
+   const lastPulseTime = useRef(0); // Track 15-min interval for background tracking
+   const [selectedStaffLog, setSelectedStaffLog] = useState(null);
 
    // Selfie Attendance States
    const [showSelfieModal, setShowSelfieModal] = useState(false);
@@ -100,10 +104,9 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
    const [currentView, setCurrentView] = useState('Overview'); // 'Overview', 'Analytics', 'Profile'
    const [selectedProfile, setSelectedProfile] = useState(null);
 
-   const [chartMode, setChartMode] = useState('7Days'); // '7Days', 'Yearly', 'Custom'
-   const [chartYear, setChartYear] = useState('2026');
-   const [chartStartDate, setChartStartDate] = useState('');
-   const [chartEndDate, setChartEndDate] = useState('');
+    // Analytics State
+    const [analytics, setAnalytics] = useState(null);
+    const [myStats, setMyStats] = useState(null);
 
    // Modals
    const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -145,36 +148,73 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
    const [submissionDate, setSubmissionDate] = useState('');
    const [taskCreatedDate, setTaskCreatedDate] = useState('');
 
-   useEffect(() => {
-      // 15-Minute Automatic Route Tracker (Active during clock-in)
-      const shouldTrack = user.attendance_status === 'online' && user.role === 'Employe';
-      let intervalId = null;
+   const pushTrace = () => {
+      // Prevent duplicate signals within the same minute for accuracy
+      const currentMin = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      if (lastSignalMinute.current === currentMin) return;
 
-      const pushTrace = () => {
-         if ("geolocation" in navigator) {
-            navigator.geolocation.getCurrentPosition(pos => {
+      if ("geolocation" in navigator) {
+         // Priority for High-Precision Mobile Background Tracking
+         navigator.geolocation.getCurrentPosition(pos => {
+            const { latitude, longitude } = pos.coords;
+            fetch(`${API_BASE_URL}/admin/attendance_trace`, {
+               method: 'PATCH',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({
+                  username: user.admin || user.username,
+                  lat: latitude,
+                  lng: longitude
+               })
+            }).then(() => {
+               lastSignalMinute.current = currentMin; // Record success to prevent clutter
+            }).catch(() => { });
+         }, (err) => console.log("Loc Error:", err), {
+            enableHighAccuracy: true,
+            timeout: 20000,
+            maximumAge: 0
+         });
+      }
+   };
+
+   useEffect(() => {
+      // High-Fidelity Background Journey Tracker (Uses watchPosition for mobile reliability)
+      const shouldTrack = localStatus === 'online' && user.role === 'Employe';
+      let watchId = null;
+
+      if (shouldTrack) {
+         // Perform initial pulse immediately on clock-in
+         pushTrace();
+         lastPulseTime.current = Date.now();
+
+         // Register persistent GPS watch with the mobile OS
+         watchId = navigator.geolocation.watchPosition(pos => {
+            const now = Date.now();
+            const fifteenMins = 15 * 60 * 1000;
+
+            // Intelligence Filter: Only punch the cloud every 15 minutes to save battery & data
+            if (now - lastPulseTime.current >= fifteenMins) {
                const { latitude, longitude } = pos.coords;
-               if (!user.username) return;
                fetch(`${API_BASE_URL}/admin/attendance_trace`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ 
-                     username: user.admin || user.username, 
-                     lat: latitude, 
-                     lng: longitude 
+                  body: JSON.stringify({
+                     username: user.admin || user.username,
+                     lat: latitude,
+                     lng: longitude
                   })
-               }).catch(() => {});
-            });
-         }
-      };
-
-      if (shouldTrack) {
-         pushTrace(); // Initial signal on clock-in
-         intervalId = setInterval(pushTrace, 900000); // Pulse every 15 mins
+               }).then(() => {
+                  lastPulseTime.current = now; // Update pulse clock
+               }).catch(() => { });
+            }
+         }, (err) => console.warn("Background Pulse Error:", err), {
+            enableHighAccuracy: true,
+            maximumAge: 10000,
+            timeout: 30000
+         });
       }
 
-      return () => { if(intervalId) clearInterval(intervalId); };
-   }, [user.attendance_status]);
+      return () => { if (watchId) navigator.geolocation.clearWatch(watchId); };
+   }, [localStatus]);
 
    const [toast, setToast] = useState({ visible: false, title: "", message: "" });
    const [viewingRoute, setViewingRoute] = useState(null); // Array of trace nodes
@@ -186,12 +226,12 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
          fetch(`${API_BASE_URL}/app_version`)
             .then(r => r.json())
             .then(data => {
-               if(data.version && data.version !== CURRENT_VERSION) {
+               if (data.version && data.version !== CURRENT_VERSION) {
                   setNewUpdateAvailable(true);
                }
             }).catch(e => console.log("Update check skipped"));
       };
-      
+
       checkUpdate();
       const interval = setInterval(checkUpdate, 600000); // Check every 10 mins
       return () => clearInterval(interval);
@@ -202,21 +242,30 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
       setTimeout(() => setToast({ visible: false, title: "", message: "" }), 3000);
    };
 
-   useEffect(() => fetchData(), [user.role]);
-
    const fetchData = () => {
+      const currentUname = user.admin || user.username;
+      
       fetch(`${API_BASE_URL}/admin/tasks`).then(r => r.json()).then(data => setTasks(data || []));
       fetch(`${API_BASE_URL}/admin/users`).then(r => r.json()).then(data => setUsers(data || []));
+      
+      // Pass username for personalized analytics if relevant
+      const analyticsUrl = (user.role === 'CEO' || user.role === 'Manager') 
+          ? `${API_BASE_URL}/admin/analytics` 
+          : `${API_BASE_URL}/admin/analytics?username=${currentUname}`;
+          
+      fetch(analyticsUrl).then(r => r.json()).then(data => setAnalytics(data));
+      fetch(`${API_BASE_URL}/admin/user_stats/${currentUname}`).then(r => r.json()).then(data => setMyStats(data));
+
       if (user.role === 'CEO' || user.role === 'Manager') {
          fetch(`${API_BASE_URL}/admin/contacts`).then(r => r.json()).then(data => setInquiries(data || []));
-         fetch(`${API_BASE_URL}/admin/attendance_history?date=${attendanceFilter}`).then(r => r.json()).then(data => setAttendanceLogs(data || []));
       }
+      fetch(`${API_BASE_URL}/admin/attendance_history?date=${attendanceFilter}`).then(r => r.json()).then(data => {
+         setAttendanceLogs(data || []);
+      });
    };
 
    useEffect(() => {
-      if (user.role === 'CEO' || user.role === 'Manager') {
-         fetch(`${API_BASE_URL}/admin/attendance_history?date=${attendanceFilter}`).then(r => r.json()).then(data => setAttendanceLogs(data || []));
-      }
+      fetchData();
    }, [attendanceFilter]);
 
    const fetchUserPoints = (uname) => {
@@ -232,21 +281,37 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
       setShowSelfieModal(true);
    };
 
-   const completeAttendanceWithSelfie = (selfieBase64) => {
+   const completeAttendanceWithSelfie = async (selfieBase64) => {
       setIsCapturing(true);
+
+      let initialLoc = null;
+      try {
+         // Force capture GPS at the exact second of clocking for the CEO
+         const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+               enableHighAccuracy: true, timeout: 5000
+            });
+         });
+         initialLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      } catch (err) {
+         console.warn("Continuing attendance without initial GPS:", err);
+      }
+
       fetch(`${API_BASE_URL}/admin/attendance`, {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ 
-            username: user.admin || user.username, 
+         body: JSON.stringify({
+            username: user.admin || user.username,
             status: selfieType,
-            selfie: selfieBase64 
+            selfie: selfieBase64,
+            location: initialLoc // Push location directly to the cloud with the status
          })
       }).then(r => r.json()).then(res => {
          setIsCapturing(false);
-         if(res.status === 'success') {
+         if (res.status === 'success') {
             showToast("Done", `Clock ${selfieType === 'online' ? 'In' : 'Out'} Successful!`);
             setShowSelfieModal(false);
+            setLocalStatus(selfieType); // Update local status to trigger 15-min pulses
             fetchData();
          } else {
             showToast("Error", res.message);
@@ -254,32 +319,32 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
       }).catch(() => setIsCapturing(false));
    };
 
-   // Top Employee Calculation (Memoized for high performance rendering)
-   const topEmp = useMemo(() => {
-      if (!users || !tasks) return null;
-      const activeEmps = users.filter(u => u.role !== 'CEO').map(u => ({
-         ...u, pts: tasks.filter(t => t.assignee === u.username).reduce((acc, t) => {
-            if (t.status === 'Processing') return acc + 10;
-            if (t.status === 'Delivered') return acc + 20;
-            return acc + 5;
-         }, 0)
-      }));
-      return activeEmps.reduce((prev, curr) => (prev && prev.pts > curr.pts) ? prev : curr, null);
-   }, [users, tasks]);
+   const topEmp = analytics?.top_employee;
 
-   const calculateLevel = (pts) => Math.floor(pts / 70) + 1;
-   const getProgress = (pts) => ((pts % 70) / 70) * 100;
+   const calculateLevel = (pts) => myStats?.level || 1;
+   const getProgress = (pts) => myStats?.progress || 0;
 
-   const calculateHoursWorked = (inTime, outTime) => {
-      if (!inTime || !outTime) return 0;
+   const formatTime12h = (timeStr) => {
+      if (!timeStr) return "--:--";
       try {
-         const [h1, m1, s1] = inTime.split(':').map(Number);
-         const [h2, m2, s2] = outTime.split(':').map(Number);
-         const start = new Date(0, 0, 0, h1, m1, s1);
-         const end = new Date(0, 0, 0, h2, m2, s2);
-         const diff = (end.getTime() - start.getTime()) / 1000 / 60 / 60;
-         return Math.max(0, diff).toFixed(1);
-      } catch (e) { return 0; }
+         const parts = timeStr.split(':').map(Number);
+         const h = parts[0];
+         const m = parts[1];
+         const s = parts[2] !== undefined ? parts[2] : 0; // Default 0 for seconds
+
+         const ampm = h >= 12 ? 'PM' : 'AM';
+         const hr = h % 12 || 12;
+         const min = m < 10 ? '0' + m : m;
+         const sec = s < 10 ? '0' + s : s;
+         return `${hr}:${min}${parts[2] !== undefined ? `:${sec}` : ''} ${ampm}`;
+      } catch (e) { return timeStr; }
+   };
+
+   const calculateHoursWorked = (log) => {
+      if (!log || !log.sessions) return "0.0";
+      // Sum all completed session durations (stored in minutes on backend)
+      const totalMins = log.sessions.reduce((acc, sess) => acc + (sess.duration || 0), 0);
+      return (totalMins / 60).toFixed(1);
    };
 
    const handleImageUpload = (e) => {
@@ -396,28 +461,28 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
    };
 
    useEffect(() => {
-     if (showSelfieModal) {
-        // Delay slightly to ensure video element is mounted
-        const timer = setTimeout(() => {
-           const v = document.getElementById('selfieVideo');
-           if (v && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-              navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
-                 .then(stream => {
-                    v.srcObject = stream;
-                 })
-                 .catch(err => {
-                    showToast("Camera Error", "Failed to access camera. Check permissions.");
-                    console.error("Camera access error:", err);
-                 });
-           } else if (!navigator.mediaDevices) {
-              showToast("Security Alert", "Camera requires HTTPS or Localhost. Access is blocked on this Network IP.");
-           }
-        }, 300);
-        return () => clearTimeout(timer);
-     }
-  }, [showSelfieModal]);
+      if (showSelfieModal) {
+         // Delay slightly to ensure video element is mounted
+         const timer = setTimeout(() => {
+            const v = document.getElementById('selfieVideo');
+            if (v && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+               navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+                  .then(stream => {
+                     v.srcObject = stream;
+                  })
+                  .catch(err => {
+                     showToast("Camera Error", "Failed to access camera. Check permissions.");
+                     console.error("Camera access error:", err);
+                  });
+            } else if (!navigator.mediaDevices) {
+               showToast("Security Alert", "Camera requires HTTPS or Localhost. Access is blocked on this Network IP.");
+            }
+         }, 300);
+         return () => clearTimeout(timer);
+      }
+   }, [showSelfieModal]);
 
-  const navToProfile = (u) => {
+   const navToProfile = (u) => {
       setSelectedProfile(u);
       setCurrentView('Profile');
    };
@@ -425,34 +490,11 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
 
    // ANALYTICS COMPONENTS
    const renderAnalytics = () => {
-      const pending = displayedTasks.filter(t => t.status === 'Pending').length;
-      const processing = displayedTasks.filter(t => t.status === 'Processing').length;
-      const delivered = displayedTasks.filter(t => t.status === 'Delivered').length;
-      const total = displayedTasks.length || 1;
+      const breakdown = analytics?.breakdown || { delivered: 0, processing: 0, pending: 0, total: 1 };
+      const { delivered, processing, pending } = breakdown;
+      const total = breakdown.total || 1;
 
-      const generateGaugeData = (tasksList) => {
-         const todayStr = new Date().toLocaleString('sv-SE').split(' ')[0];
-         const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-         const yestStr = yesterday.toLocaleString('sv-SE').split(' ')[0];
-
-         const todayTasks = tasksList.filter(t => (t.created_at_date || t.submission_date || '').trim() === todayStr);
-         const yestTasks = tasksList.filter(t => (t.created_at_date || t.submission_date || '').trim() === yestStr);
-
-         const count = todayTasks.length;
-         const yestCount = yestTasks.length;
-
-         // Target is arbitrary (suppose daily goal is 10)
-         const target = 10;
-         const percentage = Math.min(Math.round((count / target) * 100), 100);
-
-         const diff = count - yestCount;
-         const trend = diff >= 0 ? `+${diff} from yesterday` : `${diff} from yesterday`;
-         const trendColor = diff >= 0 ? '#10b981' : '#ef4444';
-
-         return { count, percentage, trend, trendColor, todayStr };
-      };
-
-      const gauge = generateGaugeData(displayedTasks);
+      const gauge = analytics?.gauge || { count: 0, percentage: 0, trend: "...", trendColor: "#ccc", todayStr: "" };
 
       return (
          <AnalyticsGrid>
@@ -632,39 +674,47 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                         {attendanceLogs.length === 0 ? (
                            <tr><td colSpan="7" className="empty-state" style={{ padding: '4rem' }}>No clocking activity recorded for this date.</td></tr>
                         ) : attendanceLogs.map((log, i) => (
-                           <tr key={i}>
-                              <td className="bold" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                           <tr key={i} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }} onClick={() => setSelectedStaffLog(log)}>
+                              <td style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '1.2rem 1rem', fontWeight: 600, color: '#111827' }}>
                                  <div className="sl-avatar" style={{ width: '32px', height: '32px', fontSize: '0.8rem', margin: 0, background: '#f3f4f6', color: '#111827' }}>{log.name ? log.name[0] : '?'}</div>
-                                 {log.name || 'Unknown Staff'}
+                                 <span style={{ color: '#10b981', textDecoration: 'underline' }}>{log.name || 'Unknown Staff'}</span>
                               </td>
-                              <td style={{ color: '#10b981', fontWeight: 600 }}>{log.clock_in || '--:--'}</td>
-                              <td style={{ color: '#ef4444', fontWeight: 600 }}>{log.clock_out || '--:--'}</td>
-                              <td style={{ fontWeight: 700, color: '#111827' }}>{log.clock_out ? `${calculateHoursWorked(log.clock_in, log.clock_out)} HR` : '--'}</td>
+                              <td style={{ color: '#10b981', fontWeight: 600 }}>{formatTime12h(log.clock_in)}</td>
+                              <td style={{ color: '#ef4444', fontWeight: 600 }}>{formatTime12h(log.clock_out)}</td>
+                              <td style={{ fontWeight: 700, color: '#111827' }}>{calculateHoursWorked(log)} HR</td>
                               <td>
                                  <div style={{ display: 'flex', gap: '0.4rem' }}>
                                     {log.clock_in_selfie && (
-                                       <button 
-                                          onClick={() => setViewingSelfie(log.clock_in_selfie)}
-                                          style={{ background: '#10b981', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', color:'white', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 2px 4px rgba(16,185,129,0.2)' }}
+                                       <button
+                                          onClick={(e) => { e.stopPropagation(); setViewingSelfie(log.clock_in_selfie); }}
+                                          style={{ background: '#10b981', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(16,185,129,0.2)' }}
                                           title="View Clock-in Selfie"
                                        >
                                           <EyeIcon show={false} />
                                        </button>
                                     )}
                                     {log.clock_out_selfie && (
-                                       <button 
-                                          onClick={() => setViewingSelfie(log.clock_out_selfie)}
-                                          style={{ background: '#ef4444', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', color:'white', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 2px 4px rgba(239,68,68,0.2)' }}
+                                       <button
+                                          onClick={(e) => { e.stopPropagation(); setViewingSelfie(log.clock_out_selfie); }}
+                                          style={{ background: '#ef4444', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(239,68,68,0.2)' }}
                                           title="View Clock-out Selfie"
                                        >
                                           <EyeIcon show={false} />
                                        </button>
                                     )}
-                                    {log.route_trace && log.route_trace.length > 0 && (
-                                       <button 
-                                          onClick={() => { setViewingRoute(log.route_trace); setTraceUser(log.name); }}
-                                          style={{ background: '#111827', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', color:'white', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 2px 4px rgba(0,0,0,0.1)' }}
-                                          title="Track Movement Route"
+                                    {log.route_trace && log.route_trace.length > 0 ? (
+                                       <button
+                                          onClick={(e) => { e.stopPropagation(); setViewingRoute(log.route_trace); setTraceUser(log.name); }}
+                                          style={{ background: '#10b981', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(16,185,129,0.4)' }}
+                                          title={`View ${log.route_trace.length} Travel Pulse(s)`}
+                                       >
+                                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                                       </button>
+                                    ) : (
+                                       <button
+                                          style={{ background: '#e5e7eb', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'not-allowed', color: '#9ca3af', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                          title="No movement data yet"
+                                          disabled
                                        >
                                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
                                        </button>
@@ -673,7 +723,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                               </td>
                               <td>
                                  {(() => {
-                                    const hours = log.clock_out ? parseFloat(calculateHoursWorked(log.clock_in, log.clock_out)) : 0;
+                                    const hours = parseFloat(calculateHoursWorked(log));
                                     const isComplete = hours >= 7;
                                     const isOngoing = log.clock_in && !log.clock_out;
 
@@ -856,223 +906,252 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                   </div>
                </div>
             </TopNav>
-
             <Content>
                {/* BACKGROUND TRACKER FOR EMPLOYEES */}
                {user.role !== 'CEO' && <EmployeeTracker username={user.username} />}
 
-               {/* DETAIL VIEW CONTENT */}
-               {focusedTask && (
-                  <TaskDetailView
-                     task={focusedTask}
-                     onBack={() => setFocusedTask(null)}
-                  />
-               )}
-
-
-               {/* STAFF TRACKER LIST VIEW */}
-               {currentView === 'Tracker' && !focusedTask && <StaffTracker />}
-               {currentView === 'Overview' && !selectedProfile && !focusedTask && (
-                  <>
-                     <div className="greeting">
-                        <h1>Good Morning, {me.name?.split(' ')[0] || user.admin || user.username}</h1>
-                        <p>Stay on top of your tasks, monitor progress, and track status.</p>
+               {selectedStaffLog ? (
+                  <div className="staff-detail-keka" style={{ padding: '2rem 1.5rem', background: 'white', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', maxWidth: '600px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', color: '#111827' }}>
+                        <button onClick={() => setSelectedStaffLog(null)} style={{ background: 'none', border: 'none', padding: '8px', cursor: 'pointer', color: '#10b981' }}>
+                           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+                        </button>
+                        <h2 style={{ margin: 0, fontSize: '1.2rem' }}>{selectedStaffLog.username === user.username ? 'My Attendance Report' : `Attendance Audit - ${selectedStaffLog.name}`}</h2>
                      </div>
-
-                     <div className="metrics-grid">
-                        {/* 1. Profile / Meter Card */}
-                        <MetricCard className="profile-metric" onClick={() => navToProfile(me)} style={{ cursor: 'pointer' }}>
-                           <div className="metric-header" style={{ marginBottom: 0 }}>
-                              <h3>Your Profile</h3>
-                              <span className="icon-btn">View full ➔</span>
-                           </div>
-                           <div className="profile-summary">
-                              <div className="huge-avatar">
-                                 {topEmp && topEmp.username === me.username && <div className="p-crown" style={{ top: '-8px', right: '-8px', fontSize: '1rem' }}>👑</div>}
-                                 {me.profile_pic ? <img src={me.profile_pic} alt="dp" /> : user.role[0]}
-                              </div>
-                              <div className="profile-data">
-                                 <h4>{me.name}</h4>
-                                 <div className="badge">{user.role}</div>
-                                 <p>{me.gender && `${me.gender} • `}{me.dob && `Born ${me.dob}`}</p>
-                              </div>
-                           </div>
-                           {(user.role !== 'Manager' && user.role !== 'CEO') && (
-                              <>
-                                 <div className="level-box">
-                                    <div className="level-flex">
-                                       <span>Level {calculateLevel(currentPoints)}</span>
-                                       <span>{currentPoints} Pts</span>
-                                    </div>
-                                    <div className="progress-bar">
-                                       <div className="progress-fill" style={{ width: `${getProgress(currentPoints)}%` }}></div>
-                                    </div>
-                                    <p className="hint">Next Level at {(calculateLevel(currentPoints)) * 70} Pts (Req: 70)</p>
+                     <div style={{ marginBottom: '2rem' }}>
+                        <h4 style={{ color: '#6b7280', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Journey Track (15min Pulses)</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: '300px', overflowY: 'auto' }}>
+                           {(selectedStaffLog.route_trace || []).map((p, pidx) => (
+                              <div key={pidx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#f9fafb', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
+                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}></div>
+                                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{formatTime12h(p.time)} Signal</span>
                                  </div>
-                                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
-                                    <button
-                                       className="primary-btn"
-                                       style={{ flex: 1, background: me.attendance_status === 'online' ? '#111827' : '#10b981', fontSize: '0.75rem', padding: '0.6rem' }}
-                                       onClick={(e) => { e.stopPropagation(); handleAttendance('online'); }}
-                                       disabled={me.attendance_status === 'online'}
-                                    >
-                                       {me.attendance_status === 'online' ? '✅ Clocked In' : '🕒 Clock In'}
-                                    </button>
-                                    <button
-                                       className="btn-cancel"
-                                       style={{ flex: 1, fontSize: '0.75rem', padding: '0.6rem' }}
-                                       onClick={(e) => { e.stopPropagation(); handleAttendance('offline'); }}
-                                       disabled={me.attendance_status === 'offline' || !me.attendance_status}
-                                    >
-                                       Logout (Clock Out)
-                                    </button>
-                                 </div>
-                              </>
-                           )}
-                        </MetricCard>
-
-                        <MetricCard className="green-gradient">
-                           <div className="metric-header">
-                              <h3 style={{ color: 'white' }}>{user.role === 'CEO' ? 'Total Logistics' : 'Active Leads Logged'}</h3>
-                              <span className="card-icon">📋</span>
-                           </div>
-                           <h2>{displayedTasks.length}</h2>
-                           <div className="trend" style={{ color: 'white' }}>System metrics flowing</div>
-                        </MetricCard>
-
-                        <MetricCard>
-                           <div className="metric-header">
-                              <h3>Network Strength</h3>
-                              <span className="card-icon">🏢</span>
-                           </div>
-                           <h2>{users.length} Staff</h2>
-                           <div className="trend up" style={{ color: '#10b981' }}>Across Delta UPVC</div>
-                        </MetricCard>
-                     </div>
-
-                     {user.role === 'CEO' && (
-                        <div className="ceo-overview">
-                           <h2>Company Workforce</h2>
-                           <div className="employee-list">
-                              {users.filter(u => u.role !== 'CEO').map(staff => {
-                                 const isLeader = topEmp && topEmp.username === staff.username;
-                                 return (
-                                    <div className="staff-pill" key={staff.username} onClick={() => navToProfile(staff)}>
-                                       {isLeader && <span className="p-crown" style={{ position: 'absolute', marginTop: '-25px', marginLeft: '-5px', fontSize: '14px' }}>👑</span>}
-                                       <img src={staff.profile_pic || 'https://i.pravatar.cc/150'} alt="avatar" style={isLeader ? { border: '2px solid #fbbf24' } : {}} />
-                                       <div className="staff-details">
-                                          <strong>{staff.name || staff.username}</strong>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                             <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: staff.attendance_status === 'online' ? '#10b981' : '#9ca3af' }}></div>
-                                             <span style={{ fontSize: '10px', color: staff.attendance_status === 'online' ? '#10b981' : '#6b7280', fontWeight: 700 }}>
-                                                {staff.attendance_status === 'online' ? 'ONLINE' : 'OFFLINE'}
-                                             </span>
-                                          </div>
-                                          <span>{fetchUserPoints(staff.username)} Pts</span>
-                                       </div>
-                                    </div>
-                                 )
-                              })}
-                           </div>
+                                 <a href={`https://www.google.com/maps?q=${p.lat},${p.lng}`} target="_blank" rel="noreferrer" style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 800, textDecoration: 'none' }}>GOOGLE MAPS ➔</a>
+                              </div>
+                           )).reverse()}
                         </div>
+                     </div>
+
+                     <button className="primary-btn" style={{ width: '100%', padding: '1.2rem', fontWeight: 800 }} onClick={() => setSelectedStaffLog(null)}>Back to Dashboard</button>
+                  </div>
+               ) : (
+                  <>
+                     {focusedTask && (
+                        <TaskDetailView
+                           task={focusedTask}
+                           onBack={() => setFocusedTask(null)}
+                        />
                      )}
 
-                     <div className="table-section">
-                        <div className="table-header">
-                           <h2>Recent Activities</h2>
-                           <div className="table-actions">
-                              <button className="primary-btn" onClick={() => setShowAddTaskModal(true)}>+ Log Visit</button>
-                           </div>
-                        </div>
-                        <div className="table-responsive">
-                           <table className="modern-table">
-                              <thead><tr><th>Submit Date</th><th>Activity Details</th><th>Assigned Staff</th><th>Customer INFO</th><th>Status</th><th>Actions</th></tr></thead>
-                              <tbody>
-                                 {displayedTasks.map((t, i) => (
-                                    <tr key={i} onClick={() => setFocusedTask(t)} style={{ cursor: 'pointer' }}>
-                                       <td className="date-col">{t.submission_date || 'Today'}</td>
-                                       <td className="bold">{t.task}</td>
-                                       <td className="emp-col" onClick={(e) => {
-                                          e.stopPropagation();
-                                          const emp = users.find(u => u.username === t.assignee);
-                                          if (emp) navToProfile(emp);
-                                       }} style={{ cursor: 'pointer' }}>@{t.assignee}</td>
-                                       <td className="info-col">{t.deadline}</td>
-                                       <td onClick={(e) => e.stopPropagation()}>
-                                          {(user.role === 'CEO' || user.role === 'Manager') ? (
-                                             <select className={`status-pill ${t.status.toLowerCase()}`} value={t.status} onChange={(e) => handleUpdateTaskStatus(t._id, e.target.value)}>
-                                                <option value="Pending">Pending</option><option value="Processing">Processing</option><option value="Delivered">Delivered</option>
-                                             </select>
-                                          ) : (<span className={`status-pill ${t.status.toLowerCase()}`}>● {t.status}</span>)}
-                                       </td>
-                                       <td style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-                                          <button className="action-toggle" onClick={() => setActiveTaskMenu(activeTaskMenu === t._id ? null : t._id)}>
-                                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                <circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" />
-                                             </svg>
-                                          </button>
-                                          {activeTaskMenu === t._id && (
-                                             <TaskActionMenu
-                                                onEdit={() => handleEditTaskInit(t)}
-                                                onDelete={() => handleDeleteTask(t._id)}
-                                                onClose={() => setActiveTaskMenu(null)}
-                                             />
-                                          )}
-                                       </td>
-                                    </tr>
-                                 ))}
-                                 {displayedTasks.length === 0 && <tr><td colSpan="6" className="empty-state">No recent activities found in your network.</td></tr>}
-                              </tbody>
-                           </table>
-                        </div>
-                     </div>
+                     {!focusedTask && currentView === 'Tracker' && <StaffTracker />}
+                     {!focusedTask && currentView === 'Reports' && !selectedProfile && renderAnalytics()}
+                     {!focusedTask && currentView === 'Leads' && (user.role === 'CEO' || user.role === 'Manager') && renderLeads()}
+                     {!focusedTask && currentView === 'Attendance' && renderAttendance()}
+                     {!focusedTask && currentView === 'Profile' && selectedProfile && renderProfile()}
+
+                     {!focusedTask && currentView === 'Overview' && !selectedProfile && (() => {
+                        const myLog = (attendanceLogs || []).find(l => (l.username === me.username) && (l.date === new Date().toLocaleString('sv-SE').split(' ')[0]));
+                        return (
+                           <>
+                              <div className="greeting">
+                                 <h1>Good Morning, {me.name?.split(' ')[0] || user.admin || user.username}</h1>
+                                 <p>Stay on top of your tasks, monitor progress, and track status.</p>
+                              </div>
+
+                              <div className="metrics-grid">
+                                 <MetricCard className="profile-metric" onClick={() => navToProfile(me)} style={{ cursor: 'pointer' }}>
+                                    <div className="metric-header" style={{ marginBottom: 0 }}>
+                                       <h3>Your Profile</h3>
+                                       <span className="icon-btn">View full ➔</span>
+                                    </div>
+                                    <div className="profile-summary">
+                                       <div className="huge-avatar">
+                                          {topEmp && topEmp.username === me.username && <div className="p-crown" style={{ top: '-8px', right: '-8px', fontSize: '1rem' }}>👑</div>}
+                                          {me.profile_pic ? <img src={me.profile_pic} alt="dp" /> : (user.admin || user.username || 'U')[0].toUpperCase()}
+                                       </div>
+                                       <div className="profile-data">
+                                          <h4>{me.name || user.admin || user.username}</h4>
+                                          <div className="badge">{user.role}</div>
+                                          <p>{me.gender && `${me.gender} • `}{me.dob && `Born ${me.dob}`}</p>
+                                       </div>
+                                    </div>
+                                    {(user.role !== 'Manager' && user.role !== 'CEO') && (
+                                       <>
+                                          <div className="level-box">
+                                             <div className="level-flex">
+                                                <span>Level {calculateLevel(currentPoints)}</span>
+                                                <span>{currentPoints} Pts</span>
+                                             </div>
+                                             <div className="progress-bar">
+                                                <div className="progress-fill" style={{ width: `${getProgress(currentPoints)}%` }}></div>
+                                             </div>
+                                             <p className="hint">Next Level at {(calculateLevel(currentPoints)) * 70} Pts (Req: 70)</p>
+                                          </div>
+                                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
+                                             <button
+                                                className="primary-btn"
+                                                style={{ flex: 1, background: me.attendance_status === 'online' ? '#111827' : '#10b981', fontSize: '0.75rem', padding: '0.6rem' }}
+                                                onClick={(e) => { e.stopPropagation(); handleAttendance('online'); }}
+                                                disabled={me.attendance_status === 'online'}
+                                             >
+                                                {me.attendance_status === 'online' ? '✅ Clocked In' : '🕒 Clock In'}
+                                             </button>
+                                             <button
+                                                className="btn-cancel"
+                                                style={{ flex: 1, fontSize: '0.75rem', padding: '0.6rem' }}
+                                                onClick={(e) => { e.stopPropagation(); handleAttendance('offline'); }}
+                                                disabled={me.attendance_status === 'offline' || !me.attendance_status}
+                                             >
+                                                Logout (Clock Out)
+                                             </button>
+                                          </div>
+                                          <div style={{ marginTop: '1rem', background: '#f9fafb', padding: '0.8rem', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                             <div>
+                                                <div style={{ fontSize: '0.7rem', opacity: 0.8 }}>SHIFT DURATION</div>
+                                                <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>{myLog ? `${calculateHoursWorked(myLog)} HOURS` : 'SHIFT IN PROGRESS'}</div>
+                                             </div>
+                                             <div
+                                                onClick={(e) => { e.stopPropagation(); if (myLog) setSelectedStaffLog(myLog); }}
+                                                style={{ background: 'white', color: '#10b981', padding: '0.5rem 1rem', borderRadius: '2rem', fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+                                             >
+                                                {myLog ? 'VIEW HISTORY' : 'NOT CLOCKED IN'}
+                                             </div>
+                                          </div>
+                                       </>
+                                    )}
+                                 </MetricCard>
+
+                                 <MetricCard className="green-gradient">
+                                    <div className="metric-header">
+                                       <h3 style={{ color: 'white' }}>{user.role === 'CEO' ? 'Total Logistics' : 'Active Leads Logged'}</h3>
+                                       <span className="card-icon">📋</span>
+                                    </div>
+                                    <h2>{displayedTasks.length}</h2>
+                                    <div className="trend" style={{ color: 'white' }}>System metrics flowing</div>
+                                 </MetricCard>
+
+                                 <MetricCard>
+                                    <div className="metric-header">
+                                       <h3>Network Strength</h3>
+                                       <span className="card-icon">🏢</span>
+                                    </div>
+                                    <h2>{users.length} Staff</h2>
+                                    <div className="trend up" style={{ color: '#10b981' }}>Across Delta UPVC</div>
+                                 </MetricCard>
+                              </div>
+
+                              {user.role === 'CEO' && (
+                                 <div className="ceo-overview">
+                                    <h2>Company Workforce</h2>
+                                    <div className="employee-list">
+                                       {users.filter(u => u.role !== 'CEO').map(staff => {
+                                          const isLeader = topEmp && topEmp.username === staff.username;
+                                          return (
+                                             <div className="staff-pill" key={staff.username} onClick={() => navToProfile(staff)}>
+                                                {isLeader && <span className="p-crown" style={{ position: 'absolute', marginTop: '-25px', marginLeft: '-5px', fontSize: '14px' }}>👑</span>}
+                                                <img src={staff.profile_pic || 'https://i.pravatar.cc/150'} alt="avatar" style={isLeader ? { border: '2px solid #fbbf24' } : {}} />
+                                                <div className="staff-details">
+                                                   <strong>{staff.name || staff.username}</strong>
+                                                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: staff.attendance_status === 'online' ? '#10b981' : '#9ca3af' }}></div>
+                                                      <span style={{ fontSize: '10px', color: staff.attendance_status === 'online' ? '#10b981' : '#6b7280', fontWeight: 700 }}>
+                                                         {staff.attendance_status === 'online' ? 'ONLINE' : 'OFFLINE'}
+                                                      </span>
+                                                   </div>
+                                                   <span>{fetchUserPoints(staff.username)} Pts</span>
+                                                </div>
+                                             </div>
+                                          )
+                                       })}
+                                    </div>
+                                 </div>
+                              )}
+
+                              <div className="table-section">
+                                 <div className="table-header">
+                                    <h2>Recent Activities</h2>
+                                    <div className="table-actions">
+                                       <button className="primary-btn" onClick={() => setShowAddTaskModal(true)}>+ Log Visit</button>
+                                    </div>
+                                 </div>
+                                 <div className="table-responsive">
+                                    <table className="modern-table">
+                                       <thead><tr><th>Submit Date</th><th>Activity Details</th><th>Assigned Staff</th><th>Customer INFO</th><th>Status</th><th>Actions</th></tr></thead>
+                                       <tbody>
+                                          {displayedTasks.map((t, i) => (
+                                             <tr key={i} onClick={() => setFocusedTask(t)} style={{ cursor: 'pointer' }}>
+                                                <td className="date-col">{t.submission_date || 'Today'}</td>
+                                                <td className="bold">{t.task}</td>
+                                                <td className="emp-col" onClick={(e) => {
+                                                   e.stopPropagation();
+                                                   const emp = users.find(u => u.username === t.assignee);
+                                                   if (emp) navToProfile(emp);
+                                                }} style={{ cursor: 'pointer' }}>@{t.assignee}</td>
+                                                <td className="info-col">{t.deadline}</td>
+                                                <td onClick={(e) => e.stopPropagation()}>
+                                                   {(user.role === 'CEO' || user.role === 'Manager') ? (
+                                                      <select className={`status-pill ${(t.status || 'Pending').toLowerCase()}`} value={t.status || 'Pending'} onChange={(e) => handleUpdateTaskStatus(t._id, e.target.value)}>
+                                                         <option value="Pending">Pending</option><option value="Processing">Processing</option><option value="Delivered">Delivered</option>
+                                                      </select>
+                                                   ) : (<span className={`status-pill ${(t.status || 'Pending').toLowerCase()}`}>● {t.status || 'Pending'}</span>)}
+                                                </td>
+                                                <td style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+                                                   <button className="action-toggle" onClick={() => setActiveTaskMenu(activeTaskMenu === t._id ? null : t._id)}>
+                                                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                         <circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" />
+                                                      </svg>
+                                                   </button>
+                                                   {activeTaskMenu === t._id && (
+                                                      <TaskActionMenu
+                                                         onEdit={() => handleEditTaskInit(t)}
+                                                         onDelete={() => handleDeleteTask(t._id)}
+                                                         onClose={() => setActiveTaskMenu(null)}
+                                                      />
+                                                   )}
+                                                </td>
+                                             </tr>
+                                          ))}
+                                          {displayedTasks.length === 0 && <tr><td colSpan="6" className="empty-state">No recent activities found in your network.</td></tr>}
+                                       </tbody>
+                                    </table>
+                                 </div>
+                              </div>
+                           </>
+                        );
+                     })()}
                   </>
                )}
-
-               {/* ANALYTICS VIEW */}
-               {currentView === 'Reports' && !selectedProfile && renderAnalytics()}
-
-               {/* LEADS VIEW */}
-               {currentView === 'Leads' && (user.role === 'CEO' || user.role === 'Manager') && renderLeads()}
-
-               {/* ATTENDANCE LEDGER VIEW */}
-               {currentView === 'Attendance' && (user.role === 'CEO' || user.role === 'Manager') && renderAttendance()}
-
-               {/* PROFILE VIEW */}
-               {currentView === 'Profile' && selectedProfile && renderProfile()}
-
             </Content>
          </MainArea>
-
-         {/* SELFIE MODAL */}
          {showSelfieModal && (
-            <div className="modal-overlay" style={{zIndex: 2000}}>
-               <div className="modal-card" style={{maxWidth: '400px', width: '90%'}}>
-                  <h2 style={{fontSize: '1.2rem', marginBottom: '0.5rem'}}>Selfie Verification</h2>
-                  <p style={{fontSize: '0.8rem', color: '#6b7280', marginBottom: '1.5rem'}}>Please maintain a clear face for {selfieType === 'online' ? 'Clock-In' : 'Clock-Out'}.</p>
-                  
-                  <div className="camera-box" style={{background: '#000', borderRadius: '12px', overflow: 'hidden', aspectRatio: '3/4', position: 'relative'}}>
+            <div className="modal-overlay" style={{ zIndex: 2000 }}>
+               <div className="modal-card" style={{ maxWidth: '400px', width: '90%' }}>
+                  <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>Selfie Verification</h2>
+                  <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1.5rem' }}>Please maintain a clear face for {selfieType === 'online' ? 'Clock-In' : 'Clock-Out'}.</p>
+                  <div className="camera-box" style={{ background: '#000', borderRadius: '12px', overflow: 'hidden', aspectRatio: '3/4', position: 'relative' }}>
                      <video 
                         id="selfieVideo" 
                         autoPlay 
                         playsInline 
                         muted 
-                        style={{width: '100%', height: '100%', objectFit: 'cover'}}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                      />
+
                      {isCapturing && (
-                        <div style={{position:'absolute', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', color:'white'}}>
+                        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
                            Processing...
                         </div>
                      )}
                   </div>
 
                   <div className="modal-actions mt">
-                     <button 
-                        type="button" 
-                        className="btn-cancel" 
+                     <button
+                        type="button"
+                        className="btn-cancel"
                         onClick={() => {
                            const v = document.getElementById('selfieVideo');
-                           if(v && v.srcObject) {
+                           if (v && v.srcObject) {
                               v.srcObject.getTracks().forEach(t => t.stop());
                            }
                            setShowSelfieModal(false);
@@ -1080,10 +1159,10 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                      >
                         Cancel
                      </button>
-                     <button 
-                        type="button" 
-                        className="primary-btn" 
-                        style={{flex: 1}}
+                     <button
+                        type="button"
+                        className="primary-btn"
+                        style={{ flex: 1 }}
                         onClick={() => {
                            const video = document.getElementById('selfieVideo');
                            if (!video || !video.srcObject) {
@@ -1095,10 +1174,10 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                            canvas.height = video.videoHeight;
                            canvas.getContext('2d').drawImage(video, 0, 0);
                            const base64 = canvas.toDataURL('image/jpeg', 0.6); // Slightly lower quality for network speed
-                           
+
                            // Stop camera
                            video.srcObject?.getTracks().forEach(t => t.stop());
-                           
+
                            completeAttendanceWithSelfie(base64);
                         }}
                         disabled={isCapturing}
@@ -1112,47 +1191,49 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
 
          {/* PHOTO POPUP VIEWER */}
          {viewingSelfie && (
-            <div className="modal-overlay" style={{zIndex: 3000}} onClick={() => setViewingSelfie(null)}>
-               <div className="modal-card" style={{maxWidth: '450px', background:'transparent', boxShadow:'none', padding:0}}>
-                  <img src={viewingSelfie} style={{width: '100%', borderRadius: '12px', border: '4px solid white'}} alt="Selfie Log" />
-                  <p style={{color:'white', textAlign:'center', marginTop:'1rem', fontWeight:600}}>Selfie Audit Log (Captured in Cloud)</p>
+            <div className="modal-overlay" style={{ zIndex: 3000 }} onClick={() => setViewingSelfie(null)}>
+               <div className="modal-card" style={{ maxWidth: '450px', background: 'transparent', boxShadow: 'none', padding: 0 }}>
+                  <img src={viewingSelfie} style={{ width: '100%', borderRadius: '12px', border: '4px solid white' }} alt="Selfie Log" />
+                  <p style={{ color: 'white', textAlign: 'center', marginTop: '1rem', fontWeight: 600 }}>Selfie Audit Log (Captured in Cloud)</p>
                </div>
             </div>
          )}
 
          {/* ROUTE TRACKER VIEWER */}
          {viewingRoute && (
-            <div className="modal-overlay" style={{zIndex: 3000}} onClick={() => setViewingRoute(null)}>
-               <div className="modal-card" style={{maxWidth: '400px', width:'90%'}} onClick={(e) => e.stopPropagation()}>
-                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom: '2rem'}}>
+            <div className="modal-overlay" style={{ zIndex: 3000 }} onClick={() => setViewingRoute(null)}>
+               <div className="modal-card" style={{ maxWidth: '400px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
                      <div>
-                        <h2 style={{fontSize:'1.2rem', color:'#111827', margin:0}}>Travel Route: {traceUser}</h2>
-                        <p style={{fontSize:'0.8rem', color:'#6b7280', marginTop:'0.3rem'}}>Daily movement pulses (every 15 mins)</p>
+                        <h2 style={{ fontSize: '1.2rem', color: '#111827', margin: 0 }}>Travel Route: {traceUser}</h2>
+                        <p style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '0.3rem' }}>Daily movement pulses (every 15 mins)</p>
                      </div>
                      <button className="close" onClick={() => setViewingRoute(null)}>×</button>
                   </div>
 
-                  <div className="route-list" style={{maxHeight:'400px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'1rem'}}>
-                     {viewingRoute.map((node, idx) => (
-                        <div key={idx} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1rem', background:'#f9fafb', borderRadius:'12px', border:'1px solid #f3f4f6'}}>
-                           <div style={{display:'flex', alignItems:'center', gap:'1rem'}}>
-                              <div style={{background:'#111827', color:'white', width:'24px', height:'24px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:800}}>{idx + 1}</div>
-                              <span style={{fontWeight:700, fontSize:'0.9rem'}}>{node.time} Signal</span>
+                  <div className="route-list" style={{ maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                     {viewingRoute.filter((node, idx, self) =>
+                        self.findIndex(t => t.time === node.time) === idx
+                     ).map((node, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#f9fafb', borderRadius: '12px', border: '1px solid #f3f4f6' }}>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                              <div style={{ background: '#111827', color: 'white', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 800 }}>{idx + 1}</div>
+                              <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{formatTime12h(node.time)} Signal</span>
                            </div>
-                           <a 
-                              href={`https://www.google.com/maps?q=${node.lat},${node.lng}`} 
-                              target="_blank" 
+                           <a
+                              href={`https://www.google.com/maps?q=${node.lat},${node.lng}`}
+                              target="_blank"
                               rel="noreferrer"
-                              style={{background:'#10b981', color:'white', padding:'0.4rem 0.8rem', borderRadius:'6px',fontSize:'0.75rem', fontWeight:600, textDecoration:'none'}}
+                              style={{ background: '#10b981', color: 'white', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, textDecoration: 'none' }}
                            >
                               Open in Maps
                            </a>
                         </div>
                      )).reverse()}
                   </div>
-                  
+
                   <div className="modal-actions mt">
-                     <button className="primary-btn" style={{width:'100%'}} onClick={() => setViewingRoute(null)}>Close Route History</button>
+                     <button className="primary-btn" style={{ width: '100%' }} onClick={() => setViewingRoute(null)}>Close Route History</button>
                   </div>
                </div>
             </div>
@@ -1167,11 +1248,11 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                   </div>
                   <div className="content">
                      <span className="title">New Update Live!</span>
-                     <div className="desc">A new version of Delta UPVC is available with fixes & features.</div> 
+                     <div className="desc">A new version of Delta UPVC is available with fixes & features.</div>
                      <div className="actions">
                         <button onClick={() => window.location.reload(true)} className="download">Update App</button>
-                        <button onClick={() => setNewUpdateAvailable(false)} className="notnow">Not now</button> 
-                     </div>    
+                        <button onClick={() => setNewUpdateAvailable(false)} className="notnow">Not now</button>
+                     </div>
                   </div>
                   <button type="button" className="close" onClick={() => setNewUpdateAvailable(false)}>
                      <svg aria-hidden="true" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
