@@ -79,10 +79,14 @@ const ToastPopup = ({ title, message, onClose }) => {
    );
 };
 
+// VERSION CONTROL (Sync with Vercel)
+const CURRENT_VERSION = "1.1.0"; 
+
 const Dashboard = ({ user, onLogout, onHomeNav }) => {
    const [tasks, setTasks] = useState([]);
    const [users, setUsers] = useState([]);
    const [inquiries, setInquiries] = useState([]);
+   const [newUpdateAvailable, setNewUpdateAvailable] = useState(false);
    const [attendanceLogs, setAttendanceLogs] = useState([]);
    const [attendanceFilter, setAttendanceFilter] = useState(new Date().toLocaleString('sv-SE').split(' ')[0]);
 
@@ -142,6 +146,23 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
    const [taskCreatedDate, setTaskCreatedDate] = useState('');
 
    const [toast, setToast] = useState({ visible: false, title: "", message: "" });
+
+   useEffect(() => {
+      // Check for App Updates from Cloud
+      const checkUpdate = () => {
+         fetch(`${API_BASE_URL}/app_version`)
+            .then(r => r.json())
+            .then(data => {
+               if(data.version && data.version !== CURRENT_VERSION) {
+                  setNewUpdateAvailable(true);
+               }
+            }).catch(e => console.log("Update check skipped"));
+      };
+      
+      checkUpdate();
+      const interval = setInterval(checkUpdate, 600000); // Check every 10 mins
+      return () => clearInterval(interval);
+   }, []);
 
    const showToast = (title, message) => {
       setToast({ visible: true, title, message });
@@ -1057,6 +1078,28 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
             </div>
          )}
 
+         {/* APP UPDATE OVERLAY (Using User's Premium Card Design) */}
+         {newUpdateAvailable && (
+            <UpdateOverlay>
+               <div className="card">
+                  <div className="icon">
+                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path strokeLinejoin="round" strokeLinecap="round" strokeWidth="1.5" stroke="#ffffff" d="M20 14V17.5C20 20.5577 16 20.5 12 20.5C8 20.5 4 20.5577 4 17.5V14M12 15L12 3M12 15L8 11M12 15L16 11" /></svg>
+                  </div>
+                  <div className="content">
+                     <span className="title">New Update Live!</span>
+                     <div className="desc">A new version of Delta UPVC is available with fixes & features.</div> 
+                     <div className="actions">
+                        <button onClick={() => window.location.reload(true)} className="download">Update App</button>
+                        <button onClick={() => setNewUpdateAvailable(false)} className="notnow">Not now</button> 
+                     </div>    
+                  </div>
+                  <button type="button" className="close" onClick={() => setNewUpdateAvailable(false)}>
+                     <svg aria-hidden="true" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                  </button>
+               </div>
+            </UpdateOverlay>
+         )}
+
          {/* MODALS */}
          {(showAddTaskModal || showAddUserModal || showEditModal) && (
             <div className="modal-overlay">
@@ -1469,4 +1512,55 @@ const ToastPopupWrapper = styled.div`
   .toast-close { background: none; border: none; color: #9ca3af; cursor: pointer; }
 `;
 
+const UpdateOverlay = styled.div`
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 9999;
+  animation: slideUp 0.5s ease-out;
+
+  @keyframes slideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  @media (max-width: 600px) {
+     right: 1rem; bottom: 1rem; left: 1rem;
+     .card { max-width: none !important; width: 100%; }
+  }
+
+  .card {
+    max-width: 320px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-radius: 1rem;
+    background: #111827;
+    background: linear-gradient(to right top, #111827, #374151);
+    padding: 1.2rem;
+    color: white;
+    box-shadow: 0px 20px 40px rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .icon {
+    height: 2.5rem; width: 2.5rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    border-radius: 0.8rem; background-color: #10b981; color: white;
+  }
+  .icon svg { height: 1.5rem; width: 1.5rem; }
+
+  .content { margin-left: 1rem; font-size: 0.875rem; line-height: 1.4; }
+  .title { margin-bottom: 0.3rem; font-size: 1rem; font-weight: 700; color: white; display: block; }
+  .desc { margin-bottom: 1rem; font-size: 0.85rem; color: #d1d5db; }
+
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+  .download, .notnow {
+    width: 100%; border-radius: 0.6rem; padding: 0.6rem; text-align: center; font-size: 0.75rem;
+    color: white; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; transition: 0.2s;
+  }
+  .download { background-color: #10b981; font-weight: 700; border: none; }
+  .download:hover { background-color: #059669; }
+  .notnow { background-color: transparent; font-weight: 600; }
+  .notnow:hover { background-color: rgba(255,255,255,0.1); }
+
+  .close { background: none; border: none; color: #9ca3af; cursor: pointer; margin-left: 0.5rem; }
+  .close svg { height: 1.25rem; width: 1.25rem; }
+`;
 export default Dashboard;

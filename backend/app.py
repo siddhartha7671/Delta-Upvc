@@ -520,6 +520,11 @@ def login():
     except Exception as e:
         return jsonify({"message": "DB Auth Error", "status": "error"}), 500
 
+@app.route('/api/app_version', methods=['GET'])
+def get_app_version():
+    """Source of truth for mobile app updates"""
+    return jsonify({"version": "1.1.0"})
+
 if __name__ == '__main__':
     print("Delta UPVC Cloud Backend booting up with MongoDB Atlas...")
     app.run(debug=True, host='0.0.0.0', port=8080)
