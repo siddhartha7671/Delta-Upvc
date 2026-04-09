@@ -37,6 +37,8 @@ def send_onboarding_email(target_email, name, username, password):
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
+    if not data:
+        return jsonify({"status": "error", "message": "No credentials provided"}), 400
     username = data.get('username')
     password = data.get('password')
     user = admins_collection.find_one({"username": username, "password": password}, {'_id': 0})
@@ -76,7 +78,10 @@ def add_user():
 
 @auth_bp.route('/admin/delete_user', methods=['DELETE'])
 def delete_user():
-    username = request.get_json().get('username')
+    data = request.get_json()
+    if not data:
+        return jsonify({"status": "error", "message": "No data provided"}), 400
+    username = data.get('username')
     if username == "ceo_delta": return jsonify({"status": "error"}), 400
     admins_collection.delete_one({"username": username})
     return jsonify({"status": "success"})

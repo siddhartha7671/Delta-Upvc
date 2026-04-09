@@ -1,15 +1,23 @@
 import os
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+# Load ENV from the current directory explicitly
+env_path = Path(__file__).parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 MONGO_URI = os.environ.get("MONGO_URI")
 
 if not MONGO_URI:
     print("⚠️ WARNING: MONGO_URI not set! Check your .env file.")
 
-client = MongoClient(MONGO_URI) if MONGO_URI else None
+client = MongoClient(
+    MONGO_URI, 
+    serverSelectionTimeoutMS=5000, 
+    retryWrites=True
+) if MONGO_URI else None
+
 db = client['delta_upvc_portal'] if client else None
 
 def verify_connection():
@@ -20,13 +28,13 @@ def verify_connection():
         print(f"MongoDB Ping Error: {e}")
         return False
 
-# Collections
-tasks_collection = db['tasks']
-admins_collection = db['admins']
-login_logs = db['login_logs']
-contacts_collection = db['contacts']
-system_logs = db['system_logs']
-attendance_logs = db['attendance_logs']
+# Collections (Safe Access)
+tasks_collection = db['tasks'] if db is not None else None
+admins_collection = db['admins'] if db is not None else None
+login_logs = db['login_logs'] if db is not None else None
+contacts_collection = db['contacts'] if db is not None else None
+system_logs = db['system_logs'] if db is not None else None
+attendance_logs = db['attendance_logs'] if db is not None else None
 
 def init_system():
     import datetime

@@ -25,6 +25,8 @@ def get_tasks():
 @tasks_bp.route('/admin/add_task', methods=['POST'])
 def add_task():
     data = request.get_json()
+    if not data:
+        return jsonify({"status": "error", "message": "No data provided"}), 400
     data['created_at'] = datetime.datetime.now()
     tasks_collection.insert_one(data)
     log_system_event("TASK_CREATE", f"Task created", data.get('assignee', 'ADMIN'))
@@ -33,6 +35,8 @@ def add_task():
 @tasks_bp.route('/admin/update_task_status', methods=['POST'])
 def update_task():
     data = request.get_json()
+    if not data or 'task_id' not in data or 'status' not in data:
+        return jsonify({"status": "error", "message": "Missing task_id or status"}), 400
     tasks_collection.update_one({"_id": ObjectId(data['task_id'])}, {"$set": {"status": data['status']}})
     return jsonify({"status": "success"})
 
