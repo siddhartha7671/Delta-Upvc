@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from database import admins_collection, login_logs, system_logs
+from database import admins_collection, login_logs, system_logs, get_now
 import datetime
 import os
 import smtplib
@@ -16,7 +16,7 @@ def log_system_event(event_type, message, user_identity="SYSTEM"):
             "event": event_type,
             "message": message,
             "user": user_identity,
-            "timestamp": datetime.datetime.now()
+            "timestamp": get_now()
         })
     except: pass
 
@@ -46,7 +46,7 @@ def login():
         login_logs.insert_one({
             "username": username,
             "role": user['role'],
-            "login_time": datetime.datetime.now(),
+            "login_time": get_now(),
             "ip": request.remote_addr
         })
         return jsonify({"status": "success", "admin": username, "role": user['role']})
@@ -71,7 +71,7 @@ def add_user():
     if admins_collection.find_one({"username": username}):
         return jsonify({"status": "error", "message": "Exists"}), 400
         
-    data['created_at'] = datetime.datetime.now()
+    data['created_at'] = get_now()
     admins_collection.insert_one(data)
     send_onboarding_email(data.get('email'), data.get('name'), username, data.get('password'))
     return jsonify({"status": "success", "message": "Added"})

@@ -17,6 +17,7 @@ from routes_attendance import attendance_bp
 from routes_contacts import contacts_bp
 from routes_analytics import analytics_bp
 from routes_services import services_bp
+from routes_location import location_bp
 from database import verify_connection
 
 # Configure Logging for Production
@@ -42,6 +43,7 @@ app.register_blueprint(attendance_bp, url_prefix='/api')
 app.register_blueprint(contacts_bp, url_prefix='/api')
 app.register_blueprint(analytics_bp, url_prefix='/api')
 app.register_blueprint(services_bp, url_prefix='/api')
+app.register_blueprint(location_bp, url_prefix='/api')
 
 # Global Error Handler
 from werkzeug.exceptions import HTTPException

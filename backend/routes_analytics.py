@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from database import tasks_collection, admins_collection
+from database import tasks_collection, admins_collection, get_now
 import datetime
 
 analytics_bp = Blueprint('analytics', __name__)
@@ -35,8 +35,9 @@ def get_analytics():
     all_tasks = list(tasks_collection.find(query))
     
     # 2. Gauge Data
-    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
-    yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+    now = get_now()
+    today_str = now.strftime("%Y-%m-%d")
+    yesterday = now - datetime.timedelta(days=1)
     yest_str = yesterday.strftime("%Y-%m-%d")
 
     today_tasks = [t for t in all_tasks if (t.get('created_at_date') or t.get('submission_date') or '').strip() == today_str]

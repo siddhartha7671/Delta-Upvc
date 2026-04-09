@@ -2,6 +2,12 @@ import os
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from pathlib import Path
+import datetime
+
+IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+
+def get_now():
+    return datetime.datetime.now(IST)
 
 # Load ENV from the current directory explicitly
 env_path = Path(__file__).parent / '.env'
@@ -47,7 +53,7 @@ def init_system():
                 "username": "ceo_delta",
                 "password": os.environ.get("CEO_PASS", "ceo2025"),
                 "role": "CEO",
-                "created_at": datetime.datetime.now()
+                "created_at": get_now()
             })
             print("👤 Master CEO Account Initialized.")
 

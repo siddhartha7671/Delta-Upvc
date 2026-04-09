@@ -88,11 +88,23 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
    const [inquiries, setInquiries] = useState([]);
    const [newUpdateAvailable, setNewUpdateAvailable] = useState(false);
    const [attendanceLogs, setAttendanceLogs] = useState([]);
+   const [locationHistory, setLocationHistory] = useState([]);
    const [attendanceFilter, setAttendanceFilter] = useState(new Date().toLocaleString('sv-SE').split(' ')[0]);
    const [localStatus, setLocalStatus] = useState(user.attendance_status || 'offline');
    const lastSignalMinute = useRef(""); // Track minute-level duplicates
    const lastPulseTime = useRef(0); // Track 15-min interval for background tracking
    const [selectedStaffLog, setSelectedStaffLog] = useState(null);
+
+   useEffect(() => {
+       if (selectedStaffLog) {
+           fetch(`${API_BASE_URL}/admin/location_history?username=${selectedStaffLog.username}&date=${selectedStaffLog.date}`)
+               .then(r => r.json())
+               .then(data => setLocationHistory(data || []))
+               .catch(() => setLocationHistory([]));
+       } else {
+           setLocationHistory([]);
+       }
+   }, [selectedStaffLog]);
 
    // Selfie Attendance States
    const [showSelfieModal, setShowSelfieModal] = useState(false);
@@ -154,9 +166,21 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
       if (lastSignalMinute.current === currentMin) return;
 
       if ("geolocation" in navigator) {
-         // Priority for High-Precision Mobile Background Tracking
          navigator.geolocation.getCurrentPosition(pos => {
             const { latitude, longitude } = pos.coords;
+            fetch(`${API_BASE_URL}/admin/track_location`, {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({
+                  username: user.admin || user.username,
+                  lat: latitude,
+                  lng: longitude
+               })
+            }).then(() => {
+               lastSignalMinute.current = currentMin;
+            }).catch(() => { });
+            
+            // Still push to attendance_trace for the quick route view compatibility
             fetch(`${API_BASE_URL}/admin/attendance_trace`, {
                method: 'PATCH',
                headers: { 'Content-Type': 'application/json' },
@@ -165,9 +189,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                   lat: latitude,
                   lng: longitude
                })
-            }).then(() => {
-               lastSignalMinute.current = currentMin; // Record success to prevent clutter
-            }).catch(() => { });
+            }).catch(() => {});
          }, (err) => console.log("Loc Error:", err), {
             enableHighAccuracy: true,
             timeout: 20000,
@@ -194,6 +216,18 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
             // Intelligence Filter: Only punch the cloud every 15 minutes to save battery & data
             if (now - lastPulseTime.current >= fifteenMins) {
                const { latitude, longitude } = pos.coords;
+               fetch(`${API_BASE_URL}/admin/track_location`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                     username: user.admin || user.username,
+                     lat: latitude,
+                     lng: longitude
+                  })
+               }).then(() => {
+                  lastPulseTime.current = now;
+               }).catch(() => { });
+
                fetch(`${API_BASE_URL}/admin/attendance_trace`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
@@ -202,13 +236,11 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                      lat: latitude,
                      lng: longitude
                   })
-               }).then(() => {
-                  lastPulseTime.current = now; // Update pulse clock
-               }).catch(() => { });
+               }).catch(() => {});
             }
          }, (err) => console.warn("Background Pulse Error:", err), {
             enableHighAccuracy: true,
-            maximumAge: 10000,
+            maximumAge: 0,
             timeout: 30000
          });
       }
@@ -919,17 +951,22 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                         <h2 style={{ margin: 0, fontSize: '1.2rem' }}>{selectedStaffLog.username === user.username ? 'My Attendance Report' : `Attendance Audit - ${selectedStaffLog.name}`}</h2>
                      </div>
                      <div style={{ marginBottom: '2rem' }}>
-                        <h4 style={{ color: '#6b7280', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Journey Track (15min Pulses)</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: '300px', overflowY: 'auto' }}>
-                           {(selectedStaffLog.route_trace || []).map((p, pidx) => (
-                              <div key={pidx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#f9fafb', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
+                        <h4 style={{ color: '#6b7280', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Detailed Location History (Real-time Logs)</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '5px' }}>
+                           {locationHistory.length === 0 ? (
+                               <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem', padding: '1rem' }}>No detailed location pulses recorded yet.</p>
+                           ) : locationHistory.map((p, pidx) => (
+                              <div key={pidx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#f9fafb', borderRadius: '10px', border: '1px solid #f1f5f9', borderLeft: '4px solid #10b981' }}>
                                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}></div>
-                                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{formatTime12h(p.time)} Signal</span>
+                                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#ecfdf5', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 800 }}>{locationHistory.length - pidx}</div>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827' }}>Location Pulse</span>
+                                        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Verified at {formatTime12h(p.time)}</span>
+                                    </div>
                                  </div>
-                                 <a href={`https://www.google.com/maps?q=${p.lat},${p.lng}`} target="_blank" rel="noreferrer" style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 800, textDecoration: 'none' }}>GOOGLE MAPS ➔</a>
+                                 <a href={`https://www.google.com/maps?q=${p.lat},${p.lng}`} target="_blank" rel="noreferrer" style={{ background: '#111827', color: 'white', padding: '6px 12px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 700, textDecoration: 'none' }}>MAP ➔</a>
                               </div>
-                           )).reverse()}
+                           ))}
                         </div>
                      </div>
 

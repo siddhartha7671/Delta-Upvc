@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from database import contacts_collection
+from database import contacts_collection, get_now
 import datetime
 
 contacts_bp = Blueprint('contacts', __name__)
@@ -7,7 +7,7 @@ contacts_bp = Blueprint('contacts', __name__)
 @contacts_bp.route('/contact', methods=['POST'])
 def submit_contact():
     data = request.get_json()
-    data['timestamp'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    data['timestamp'] = get_now().strftime("%Y-%m-%d %H:%M:%S")
     contacts_collection.insert_one(data)
     return jsonify({"status": "success"})
 

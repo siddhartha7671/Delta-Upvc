@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from database import tasks_collection, system_logs
+from database import tasks_collection, system_logs, get_now
 from bson import ObjectId
 import datetime
 
@@ -8,7 +8,7 @@ tasks_bp = Blueprint('tasks', __name__)
 def log_system_event(event_type, message, user_identity="SYSTEM"):
     try:
         system_logs.insert_one({
-            "event": event_type, "message": message, "user": user_identity, "timestamp": datetime.datetime.now()
+            "event": event_type, "message": message, "user": user_identity, "timestamp": get_now()
         })
     except: pass
 
@@ -27,7 +27,7 @@ def add_task():
     data = request.get_json()
     if not data:
         return jsonify({"status": "error", "message": "No data provided"}), 400
-    data['created_at'] = datetime.datetime.now()
+    data['created_at'] = get_now()
     tasks_collection.insert_one(data)
     log_system_event("TASK_CREATE", f"Task created", data.get('assignee', 'ADMIN'))
     return jsonify({"status": "success", "message": "Task Added"})

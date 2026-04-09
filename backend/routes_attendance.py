@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from database import attendance_logs, admins_collection
+from database import attendance_logs, admins_collection, get_now
 import datetime
 
 attendance_bp = Blueprint('attendance', __name__)
@@ -9,7 +9,7 @@ def update_attendance():
     data = request.get_json()
     username = data.get('username')
     status = data.get('status')
-    now = datetime.datetime.now()
+    now = get_now()
     today_str = now.strftime("%Y-%m-%d")
     time_str = now.strftime("%H:%M:%S")
 
@@ -39,7 +39,7 @@ def get_attendance():
 @attendance_bp.route('/admin/attendance_trace', methods=['PATCH'])
 def track_trace():
     data = request.get_json()
-    now = datetime.datetime.now()
+    now = get_now()
     today_str = now.strftime("%Y-%m-%d")
     trace = {"lat": data['lat'], "lng": data['lng'], "time": now.strftime("%H:%M")}
     attendance_logs.update_one({"username": data['username'], "date": today_str}, {"$push": {"route_trace": trace}}, upsert=True)
@@ -53,5 +53,6 @@ def get_locations():
 @attendance_bp.route('/admin/update_location', methods=['POST'])
 def update_location():
     data = request.get_json()
-    admins_collection.update_one({"username": data['username']}, {"$set": {"location": {"lat": data['lat'], "lng": data['lng']}, "last_seen": datetime.datetime.now()}})
+    now = get_now()
+    admins_collection.update_one({"username": data['username']}, {"$set": {"location": {"lat": data['lat'], "lng": data['lng']}, "last_seen": now}})
     return jsonify({"status": "success"})
