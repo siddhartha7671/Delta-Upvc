@@ -5,23 +5,25 @@ const LOCAL_IP = '192.168.1.93'; // Your developer PC's local network IP
 
 // Detection logic for Vercel vs Local Development
 const getApiUrl = () => {
-    // 1. Check for Environment Variable (Set this in Vercel Dashboard -> Settings -> Environment Variables)
+    // 1. Force Production URL if deployed or explicitly requested
+    const PRODUCTION_URL = "https://delta-upvc-backend.onrender.com/api";
+    
+    // 2. Check for Environment Variable (Set in Host Dashboard)
     if (import.meta.env.VITE_API_URL) {
         return import.meta.env.VITE_API_URL;
     }
     
-    // 2. Check if the browser is currently visiting a Vercel/Production domain
+    // 3. Check if visiting a public domain
     const isPublicDomain = !window.location.hostname.includes('localhost') && 
                            !window.location.hostname.includes('127.0.0.1') &&
-                           !window.location.hostname.match(/^\d/); // Check if not an IP
+                           !window.location.hostname.match(/^\d/);
                            
     if (isPublicDomain) {
-        // Fallback for public domains: assumes backend is on the same host or a known subdomain
-        // Replace with your real Render/Railway URL for absolute stability!
-        return "https://delta-upvc-backend.onrender.com/api"; 
+        return PRODUCTION_URL; 
     }
 
-    // 3. Default to Local Development
+    // 4. Default to Local Development (Local Network IP for mobile testing)
+    // Switch to PRODUCTION_URL here if you want to test local frontend with live backend
     return `http://${LOCAL_IP}:8080/api`;
 };
 
