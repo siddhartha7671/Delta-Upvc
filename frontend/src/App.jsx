@@ -42,7 +42,7 @@ const CountUpAnimation = ({ end, duration = 2000, suffix = "" }) => {
   return <span ref={ref} className="stat-number">{displayCount}{suffix}</span>;
 };
 
-const Footer = ({ onTermsClick }) => (
+const Footer = ({ onTermsClick, onWarrantyClick }) => (
   <footer className="enhanced-footer">
     <div className="footer-container">
        <div className="footer-top">
@@ -57,6 +57,7 @@ const Footer = ({ onTermsClick }) => (
              <h4>Quick Links</h4>
              <button onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>Home</button>
              <button onClick={onTermsClick}>Terms & Conditions</button>
+             <button onClick={onWarrantyClick}>Warranty Policy</button>
           </div>
        </div>
        <div className="footer-bottom">
@@ -133,7 +134,100 @@ const TermsModal = ({ isOpen, onClose }) => {
   );
 };
 
-const ProductDetail = ({ product, onBack, onPortalNav, onContactNav, onTermsClick }) => {
+const WarrantyModal = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="terms-overlay" onClick={onClose}>
+       <div className="terms-modal" style={{ maxWidth: '700px' }} onClick={e => e.stopPropagation()}>
+          <button className="terms-close" onClick={onClose}>×</button>
+          <div className="terms-content">
+             <h2>🛡️ Warranty Terms & Conditions – Delta UPVC Windows</h2>
+             <div className="terms-body">
+                <section>
+                   <h3>1. Warranty Coverage</h3>
+                   <p>Delta UPVC Windows provides warranty on UPVC windows and doors against manufacturing defects and material failures under normal usage.</p>
+                </section>
+
+                <section>
+                   <h3>2. Warranty Period</h3>
+                   <ul>
+                      <li><strong>UPVC Profiles:</strong> 10 years</li>
+                      <li><strong>Hardware Components:</strong> 1–2 years (depending on brand)</li>
+                      <li><strong>Glass:</strong> As per manufacturer warranty</li>
+                   </ul>
+                </section>
+
+                <section>
+                   <h3>3. What is Covered</h3>
+                   <ul>
+                      <li>Manufacturing defects</li>
+                      <li>Cracks, warping, or discoloration of UPVC profiles (under normal conditions)</li>
+                      <li>Hardware malfunction due to manufacturing issues</li>
+                   </ul>
+                </section>
+
+                <section>
+                   <h3>4. What is Not Covered</h3>
+                   <ul>
+                      <li>Damage due to improper installation (by third parties)</li>
+                      <li>Mishandling, negligence, or accidents</li>
+                      <li>Natural disasters (fire, flood, earthquake)</li>
+                      <li>Normal wear and tear</li>
+                      <li>Glass breakage after installation</li>
+                   </ul>
+                </section>
+
+                <section>
+                   <h3>5. Installation Warranty</h3>
+                   <p>Warranty is valid only if installation is done by Delta UPVC Windows authorized team.</p>
+                </section>
+
+                <section>
+                   <h3>6. Maintenance Requirements</h3>
+                   <ul>
+                      <li>Regular cleaning and maintenance must be done by the customer</li>
+                      <li>Use recommended cleaning materials only</li>
+                   </ul>
+                </section>
+
+                <section>
+                   <h3>7. Warranty Claim Process</h3>
+                   <ul>
+                      <li>Contact our support team with invoice details</li>
+                      <li>Share photos/videos of the issue</li>
+                      <li>Our team will inspect and validate the claim</li>
+                   </ul>
+                </section>
+
+                <section>
+                   <h3>8. Repair / Replacement Policy</h3>
+                   <ul>
+                      <li>Defective parts will be repaired or replaced</li>
+                      <li>Replacement does not extend the original warranty period</li>
+                   </ul>
+                </section>
+
+                <section>
+                   <h3>9. Warranty Void Conditions</h3>
+                   <p>Warranty becomes void if:</p>
+                   <ul>
+                      <li>Product is altered or modified</li>
+                      <li>Unauthorized repairs are done</li>
+                      <li>Misuse or improper maintenance is found</li>
+                   </ul>
+                </section>
+             </div>
+             <div className="terms-footer">
+                <button onClick={onClose} style={{ background: '#10b981' }}>Close</button>
+             </div>
+          </div>
+       </div>
+    </div>
+  );
+};
+
+
+const ProductDetail = ({ product, onBack, onPortalNav, onContactNav, onTermsClick, onWarrantyClick }) => {
   const photos = product.photos || [
     "https://images.unsplash.com/photo-1600607686527-6fb886090705?w=800&q=80",
     "https://images.unsplash.com/photo-1540502126233-aefb49466ed5?w=800&q=80"
@@ -264,7 +358,7 @@ const ProductDetail = ({ product, onBack, onPortalNav, onContactNav, onTermsClic
            </div>
         </section>
       </div>
-      <Footer onTermsClick={onTermsClick} />
+      <Footer onTermsClick={onTermsClick} onWarrantyClick={onWarrantyClick} />
     </div>
   );
 };
@@ -275,6 +369,7 @@ function App() {
   const [showPortal, setShowPortal] = useState(false);
   const [showContactPage, setShowContactPage] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
+  const [showWarranty, setShowWarranty] = useState(false);
   const [activeUser, setActiveUser] = useState(null);
 
   const [services, setServices] = useState([
@@ -296,11 +391,14 @@ function App() {
     }
 
 
-    // 2. Mobile Detection & Policy (Auto-Redirect to Portal)
-    const isMobile = window.innerWidth <= 768; // Standard Mobile/Tablet breakpoint
-    if (isMobile && !savedSession) {
+    // 2. Intelligent Default View Policy
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 800;
+    
+    // Default to Login (Portal) only on mobile devices as requested
+    if (isMobileDevice && !savedSession) {
       setShowPortal(true);
     }
+
 
     fetch(`${API_BASE_URL}/services`)
       .then(res => res.json())
@@ -366,6 +464,7 @@ function App() {
     <>
       {showLoader && <Loader />}
       <TermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
+      <WarrantyModal isOpen={showWarranty} onClose={() => setShowWarranty(false)} />
       
       {activeUser ? (
         <Dashboard 
@@ -390,6 +489,7 @@ function App() {
           onPortalNav={triggerPortal}
           onContactNav={() => setShowContactPage(true)}
           onTermsClick={() => setShowTerms(true)}
+          onWarrantyClick={() => setShowWarranty(true)}
         />
       ) : (
         <div className="app-container">
@@ -487,7 +587,10 @@ function App() {
             </div>
           </section>
 
-          <Footer onTermsClick={() => setShowTerms(true)} />
+          <Footer 
+            onTermsClick={() => setShowTerms(true)} 
+            onWarrantyClick={() => setShowWarranty(true)} 
+          />
         </div>
       )}
     </>
