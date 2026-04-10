@@ -391,13 +391,19 @@ function App() {
     }
 
 
-    // 2. Intelligent Default View Policy
-    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 800;
+    // 2. Strict User Intent Policy: Home for Desktop, Login for Mobile
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isSmallScreen = window.innerWidth <= 768;
     
-    // Default to Login (Portal) only on mobile devices as requested
-    if (isMobileDevice && !savedSession) {
-      setShowPortal(true);
+    // Only auto-show Login if it's definitively a mobile phone/small tablet
+    if (!savedSession) {
+      if (isMobileUA && isSmallScreen) {
+        setShowPortal(true);
+      } else {
+        setShowPortal(false); // Force Home for Desktop Chrome
+      }
     }
+
 
 
     fetch(`${API_BASE_URL}/services`)
