@@ -13,17 +13,54 @@ def update_attendance():
     today_str = now.strftime("%Y-%m-%d")
     time_str = now.strftime("%H:%M:%S")
 
-    # Update Current Status
+    # Update Current Status in Master Admin Collection
     admins_collection.update_one({"username": username}, {"$set": {"attendance_status": status}})
     
-    log = attendance_logs.find_one({"username": username, "date": today_str})
     if status == 'online':
+        # UPSERT today's log entry if first time clocking in today
         new_session = {"clock_in": time_str, "timestamp_in": now, "clock_in_selfie": data.get('selfie')}
-        attendance_logs.update_one({"username": username, "date": today_str}, {"$push": {"sessions": new_session}, "$set": {"status": "online", "clock_in": time_str}}, upsert=True)
+        attendance_logs.update_one(
+            {"username": username, "date": today_str}, 
+            {"$push": {"sessions": new_session}, "$set": {"status": "online", "clock_in": time_str}}, 
+            upsert=True
+        )
     else:
-        last_session = log['sessions'][-1]
-        duration = int((now - last_session['timestamp_in']).total_seconds() / 60)
-        attendance_logs.update_one({"username": username, "date": today_str, "sessions.clock_in": last_session['clock_in']}, {"$set": {"sessions.$.clock_out": time_str, "sessions.$.duration": duration, "status": "offline", "clock_out": time_str}})
+        # User is clocking OFFLINE
+        # 1. Find the latest log for this user (not strictly today, in case they cross midnight)
+        log = attendance_logs.find_one({"username": username, "status": "online"}, sort=[("date", -1), ("sessions.timestamp_in", -1)])
+        
+        if not log or 'sessions' not in log or len(log['sessions']) == 0:
+            # Fallback to today if no active session found
+            log = attendance_logs.find_one({"username": username, "date": today_str})
+            
+        if log and 'sessions' in log and len(log['sessions']) > 0:
+            # Find the first session that doesn't have a clock_out
+            session_index = -1
+            for i, s in enumerate(log['sessions']):
+                if 'clock_out' not in s:
+                    session_index = i
+                    break
+            
+            if session_index != -1:
+                last_session = log['sessions'][session_index]
+                duration = int((now - last_session['timestamp_in']).total_seconds() / 60)
+                
+                # Close the session efficiently using positional operator
+                attendance_logs.update_one(
+                    {"username": username, "date": log['date'], f"sessions.{session_index}.clock_in": last_session['clock_in']},
+                    {"$set": {
+                        f"sessions.{session_index}.clock_out": time_str, 
+                        f"sessions.{session_index}.duration": duration,
+                        "status": "offline", 
+                        "clock_out": time_str
+                    }}
+                )
+            else:
+                # No open session found, just set status for safety
+                attendance_logs.update_one({"username": username, "date": today_str}, {"$set": {"status": "offline"}})
+        else:
+            # Emergency: Just update status so they can clock in again later
+            attendance_logs.update_one({"username": username, "date": today_str}, {"$set": {"status": "offline", "clock_out": time_str}}, upsert=True)
     
     return jsonify({"status": "success"})
 

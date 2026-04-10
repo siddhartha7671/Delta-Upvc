@@ -462,7 +462,7 @@ function App() {
     window.scrollTo(0, 0);
   };
 
-  const marqueeItems = [
+  const marqueeItems = [ 
     "UV Protected Windows", "Energy Efficient Doors", "20-Year Warranty", "Double Glazed Glass", "100% Recyclable UPVC", "Sound Proof Frames"
   ];
 
