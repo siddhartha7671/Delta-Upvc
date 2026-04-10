@@ -9,7 +9,7 @@ def submit_contact():
     data = request.get_json()
     data['timestamp'] = get_now().strftime("%Y-%m-%d %H:%M:%S")
     contacts_collection.insert_one(data)
-    return jsonify({"status": "success"})
+    return jsonify({"status": "success", "message": "Query Submitted! Our team will reach out to you shortly."})
 
 @contacts_bp.route('/admin/contacts', methods=['GET'])
 def get_contacts():

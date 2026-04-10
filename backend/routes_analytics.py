@@ -67,9 +67,10 @@ def get_analytics():
             top_emp = max(active_emps, key=lambda x: x['pts'])
 
     # 4. Stats Breakdown (Case-Insensitive)
-    delivered = len([t for t in all_tasks if str(t.get('status', '')).upper() == 'DELIVERED'])
-    processing = len([t for t in all_tasks if str(t.get('status', '')).upper() == 'PROCESSING'])
-    pending = len([t for t in all_tasks if str(t.get('status', '')).upper() == 'PENDING'])
+    delivered = len([t for t in all_tasks if str(t.get('status') or '').upper() == 'DELIVERED'])
+    processing = len([t for t in all_tasks if str(t.get('status') or '').upper() == 'PROCESSING'])
+    # Anything else is considered Pending for the dashboard stats
+    pending = len(all_tasks) - delivered - processing
 
     return jsonify({
         "gauge": {

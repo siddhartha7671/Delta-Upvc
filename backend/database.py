@@ -27,11 +27,15 @@ client = MongoClient(
 db = client['delta_upvc_portal'] if client else None
 
 def verify_connection():
+    if not client:
+        print("ERROR: MongoDB Error: No client initialized (check MONGO_URI)")
+        return False
     try:
         client.admin.command('ping')
+        print("SUCCESS: MongoDB Connection: OK")
         return True
     except Exception as e:
-        print(f"MongoDB Ping Error: {e}")
+        print(f"FAILED: MongoDB Ping Error: {e}")
         return False
 
 # Collections (Safe Access)

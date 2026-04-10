@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import Header from './Header';
 import AnimatedButton from './AnimatedButton';
@@ -14,6 +14,14 @@ const WindowIcon = ({ size = 24, className }) => (
 import { API_BASE_URL } from '../apiConfig';
 
 const ContactFormPage = ({ onBack, onPortalNav }) => {
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [phone, setPhone] = useState('');
+
+  const handlePhoneChange = (e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setPhone(value);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const data = {
@@ -29,14 +37,55 @@ const ContactFormPage = ({ onBack, onPortalNav }) => {
     })
     .then(res => res.json())
     .then(res => {
-      alert(res.message);
-      e.target.reset();
-      onBack();
+      if (res.status === 'success') {
+        setShowSuccess(true);
+        setPhone('');
+        e.target.reset();
+      } else {
+        alert(res.message || "Something went wrong. Please try again.");
+      }
+    })
+    .catch(err => {
+      alert("Network error. Please check your connection.");
     });
   };
 
   return (
     <StyledWrapper>
+      {showSuccess && (
+        <SuccessOverlay onClick={() => onBack()}>
+          <StyledCard onClick={e => e.stopPropagation()}>
+            <div className="notifications-container">
+              <div className="success">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg aria-hidden="true" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" className="success-svg">
+                      <path clipRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" fillRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="success-prompt-wrap">
+                    <p className="success-prompt-heading">
+                      Success Submitted!
+                      <span className="checkmark">✓</span>
+                    </p>
+                    <div className="success-prompt-prompt">
+                      <p>
+                        Our team will reach out to you shortly. Thank you for choosing Delta UPVC Windows.
+                      </p>
+                    </div>
+                    <div className="success-button-container">
+                      <button className="success-button-main" type="button" onClick={() => onBack()}>Back to Home</button>
+                      <button className="success-button-secondary" type="button" onClick={() => setShowSuccess(false)}>
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </StyledCard>
+        </SuccessOverlay>
+      )}
       <Header onHomeNav={onBack} onPortalNav={onPortalNav} activeNav="contact" />
       
       {/* OUTSIDE FLOATING ICONS */}
@@ -79,7 +128,16 @@ const ContactFormPage = ({ onBack, onPortalNav }) => {
               <h2>Send an Inquiry</h2>
               <div className="input-group-row">
                 <input type="text" name="name" placeholder="Full Name" required />
-                <input type="text" name="phone" placeholder="Phone Number" required />
+                <input 
+                  type="text" 
+                  name="phone" 
+                  placeholder="Phone Number" 
+                  required 
+                  value={phone}
+                  onChange={handlePhoneChange}
+                  pattern="[0-9]{10}"
+                  title="Phone number must be exactly 10 digits"
+                />
               </div>
               <input type="email" name="email" placeholder="Email Address (Optional)" />
               <textarea name="message" placeholder="How can we help? (Optional)" rows="4"></textarea>
@@ -97,6 +155,168 @@ const ContactFormPage = ({ onBack, onPortalNav }) => {
     </StyledWrapper>
   );
 };
+
+const SuccessOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease-out;
+
+  @keyframes fadeIn {
+     from { opacity: 0; }
+     to { opacity: 1; }
+  }
+`;
+
+const StyledCard = styled.div`
+  .notifications-container {
+    width: 320px;
+    height: auto;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    animation: slideIn 0.4s ease-out;
+  }
+
+  .flex {
+    display: flex;
+  }
+
+  .flex-shrink-0 {
+    flex-shrink: 0;
+  }
+
+  .success {
+    padding: 1.25rem;
+    border-radius: 0.75rem;
+    background-color: rgb(240 253 244);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(74, 222, 128, 0.2);
+  }
+
+  .success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  }
+
+  .success-svg {
+    color: rgb(74 222 128);
+    width: 1.5rem;
+    height: 1.5rem;
+    filter: drop-shadow(0 0 8px rgba(74, 222, 128, 0.4));
+    animation: pulse 2s infinite;
+  }
+
+  .success-prompt-wrap {
+    margin-left: 1rem;
+  }
+
+  .success-prompt-heading {
+    font-weight: 700;
+    color: rgb(22 101 52);
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .checkmark {
+    color: rgb(74 222 128);
+    animation: scaleCheck 0.3s ease-in-out;
+  }
+
+  .success-prompt-prompt {
+    margin-top: 0.75rem;
+    color: rgb(21 128 61);
+    line-height: 1.5;
+  }
+
+  .success-button-container {
+    display: flex;
+    margin-top: 1rem;
+    gap: 0.75rem;
+  }
+
+  .success-button-main {
+    padding: 0.5rem 1rem;
+    background-color: rgb(22 101 52);
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    border: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(22, 101, 52, 0.2);
+  }
+
+  .success-button-main:hover {
+    background-color: rgb(21 128 61);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(22, 101, 52, 0.3);
+  }
+
+  .success-button-secondary {
+    padding: 0.5rem 1rem;
+    background-color: rgb(240 253 244);
+    color: rgb(22 101 52);
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(22, 101, 52, 0.2);
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .success-button-secondary:hover {
+    background-color: rgb(220, 243, 234);
+    border-color: rgba(22, 101, 52, 0.3);
+    transform: translateY(-1px);
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.1);
+    }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes scaleCheck {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+
+  .success-button-main:active,
+  .success-button-secondary:active {
+    transform: scale(0.95);
+  }
+`;
 
 const StyledWrapper = styled.div`
   min-height: 100vh;

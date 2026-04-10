@@ -288,8 +288,13 @@ function App() {
     // 1. Persistent Session Restore
     const savedSession = localStorage.getItem('deltaUserSession');
     if (savedSession) {
-      setActiveUser(JSON.parse(savedSession));
+      try {
+        setActiveUser(JSON.parse(savedSession));
+      } catch (e) {
+        localStorage.removeItem('deltaUserSession');
+      }
     }
+
 
     // 2. Mobile Detection & Policy (Auto-Redirect to Portal)
     const isMobile = window.innerWidth <= 768; // Standard Mobile/Tablet breakpoint
@@ -300,18 +305,18 @@ function App() {
     fetch(`${API_BASE_URL}/services`)
       .then(res => res.json())
       .then(data => { 
-        if (data.length > 0) {
+        if (data && Array.isArray(data) && data.length > 0) {
           const enriched = data.map(s => {
-            if (s.title.includes("Sliding Windows")) {
+            if (s.title && s.title.includes("Sliding Windows")) {
               return { ...s, photos: ["/sliding_1.jpg", "/sliding_2.jpg"] };
             }
-            if (s.title.includes("Premium Doors")) {
+            if (s.title && s.title.includes("Premium Doors")) {
               return { ...s, photos: ["/door_1.jpg", "/door_2.jpg"] };
             }
-            if (s.title.includes("Casement Windows")) {
+            if (s.title && s.title.includes("Casement Windows")) {
               return { ...s, photos: ["/casement_1.jpg", "/casement_2.jpg"] };
             }
-            if (s.title.includes("Repair & Maintenance")) {
+            if (s.title && s.title.includes("Repair & Maintenance")) {
                 return { ...s, photos: ["/repair_1.jpg", "/repair_2.jpg"] };
             }
             return s;
@@ -320,6 +325,7 @@ function App() {
         }
       })
       .catch(err => console.log("Backend offline, using fallback data."));
+
   }, []);
 
   const triggerPortal = () => {

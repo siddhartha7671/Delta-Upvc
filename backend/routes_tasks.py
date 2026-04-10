@@ -27,10 +27,40 @@ def add_task():
     data = request.get_json()
     if not data:
         return jsonify({"status": "error", "message": "No data provided"}), 400
+    
+    # Enforce minimum 3 photos
+    photos = data.get('site_photos', [])
+    print(f"DEBUG: Received add_task request from {data.get('assignee')} with {len(photos)} photos")
+    
+    if not photos or len(photos) < 3:
+        print(f"DEBUG: Validation Failed. Photos count: {len(photos)}")
+        return jsonify({"status": "error", "message": f"Minimum 3 site photos are mandatory. You provided {len(photos)}."}), 400
+
+
     data['created_at'] = get_now()
+    if 'status' not in data:
+        data['status'] = 'Pending'
+    
     tasks_collection.insert_one(data)
-    log_system_event("TASK_CREATE", f"Task created", data.get('assignee', 'ADMIN'))
-    return jsonify({"status": "success", "message": "Task Added"})
+    log_system_event("TASK_CREATE", f"Task/Visit logged with {len(photos)} photos", data.get('assignee', 'ADMIN'))
+    return jsonify({"status": "success", "message": "Visit Logged Successfully"})
+
+
+@tasks_bp.route('/admin/edit_task', methods=['POST'])
+def edit_task():
+    data = request.get_json()
+    task_id = data.get('task_id')
+    if not task_id:
+        return jsonify({"status": "error", "message": "Task ID required"}), 400
+    
+    # Extract updates (don't overwrite task_id)
+    updates = {k: v for k, v in data.items() if k != 'task_id'}
+    updates['updated_at'] = get_now()
+    
+    tasks_collection.update_one({"_id": ObjectId(task_id)}, {"$set": updates})
+    return jsonify({"status": "success", "message": "Task updated successfully"})
+
+
 
 @tasks_bp.route('/admin/update_task_status', methods=['POST'])
 def update_task():

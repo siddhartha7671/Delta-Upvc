@@ -33,16 +33,37 @@ const TaskDetailView = ({ task, onBack }) => {
         <div className="info-card">
           <div className="card-section">
             <label>Customer Name</label>
-            <p>{task.deadline.split(' - ')[0] || "N/A"}</p>
+            <p>{(task.deadline || "").split(' - ')[0] || "N/A"}</p>
           </div>
           <div className="card-section">
             <label>Contact Phone</label>
-            <p>{task.deadline.split(' - ')[1] || "N/A"}</p>
+            <p>{(task.deadline || "").split(' - ')[1] || "N/A"}</p>
           </div>
+
           <div className="card-section">
             <label>Activity Description</label>
             <p className="bold-desc">{task.task}</p>
           </div>
+          
+          {(task.site_photos || task.site_photo) && (
+            <div className="card-section">
+              <label>Site Proof (Mandatory Photos • {task.site_photos ? task.site_photos.length : 1} Captured)</label>
+              <div className="site-photos-grid">
+                {task.site_photos ? (
+                  task.site_photos.map((img, idx) => (
+                    <div className="site-image-container" key={idx}>
+                      <img src={img} alt={`Site Visit ${idx + 1}`} />
+                    </div>
+                  ))
+                ) : (
+                  <div className="site-image-container">
+                    <img src={task.site_photo} alt="Site Visit" />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="card-section split">
             <div>
                <label>Assigned Staff</label>
@@ -53,7 +74,23 @@ const TaskDetailView = ({ task, onBack }) => {
                <p>{task.submission_date}</p>
             </div>
           </div>
+
+          {task.location && (
+            <div className="card-section">
+              <label>Verified Site Location (GPS)</label>
+              <a 
+                href={`https://www.google.com/maps?q=${task.location.lat},${task.location.lng}`} 
+                target="_blank" 
+                rel="noreferrer"
+                className="loc-link"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                View Exact Site on Map
+              </a>
+            </div>
+          )}
         </div>
+
 
         <StyledWrapper>
           <div className="stepper-box">
@@ -154,6 +191,40 @@ const ContentGrid = styled.div`
     .split {
         display: flex;
         gap: 3rem;
+    }
+    
+    .site-photos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+
+    .site-image-container {
+      margin-top: 0.5rem;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+      max-width: 400px;
+      img { width: 100%; height: auto; display: block; transition: transform 0.3s; }
+      &:hover img { transform: scale(1.02); }
+    }
+
+    .loc-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      background: #111827;
+      color: white;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+      svg { color: #10b981; }
+      &:hover { background: #10b981; }
     }
   }
 `;

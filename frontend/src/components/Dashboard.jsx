@@ -32,7 +32,7 @@ const StaffTracker = () => {
          <div className="staff-tracker-grid">
             {locations.length === 0 ? <p className="empty-txt">No staff signals found. Waiting for updates...</p> : locations.map((staff, i) => (
                <div key={i} className="staff-loc-card">
-                  <div className="sl-avatar">{staff.name?.[0] || staff.username[0]}</div>
+                  <div className="sl-avatar">{staff.name?.[0] || (staff.username || "?")[0]}</div>
                   <div className="sl-info">
                      <h3>{staff.name || staff.username}</h3>
                      <p>Role: <strong>{staff.role}</strong></p>
@@ -90,7 +90,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
    const [attendanceLogs, setAttendanceLogs] = useState([]);
    const [locationHistory, setLocationHistory] = useState([]);
    const [attendanceFilter, setAttendanceFilter] = useState(new Date().toLocaleString('sv-SE').split(' ')[0]);
-   const [localStatus, setLocalStatus] = useState(user.attendance_status || 'offline');
+   const [localStatus, setLocalStatus] = useState((user && user.attendance_status) || 'offline');
    const lastSignalMinute = useRef(""); // Track minute-level duplicates
    const lastPulseTime = useRef(0); // Track 15-min interval for background tracking
    const [selectedStaffLog, setSelectedStaffLog] = useState(null);
@@ -154,11 +154,15 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
    const [newProfilePic, setNewProfilePic] = useState('');
 
    // Site Tracking State
-   const [siteName, setSiteName] = useState('');
-   const [sitePhone, setSitePhone] = useState('');
-   const [siteDesc, setSiteDesc] = useState('');
-   const [submissionDate, setSubmissionDate] = useState('');
-   const [taskCreatedDate, setTaskCreatedDate] = useState('');
+    const [siteName, setSiteName] = useState('');
+    const [sitePhone, setSitePhone] = useState('');
+    const [siteDesc, setSiteDesc] = useState('');
+    const [submissionDate, setSubmissionDate] = useState('');
+    const [taskCreatedDate, setTaskCreatedDate] = useState('');
+    const [sitePhotos, setSitePhotos] = useState([]);
+    const [isAddingTask, setIsAddingTask] = useState(false);
+    const [isCompressing, setIsCompressing] = useState(false);
+    const [isLocating, setIsLocating] = useState(false);
 
    const pushTrace = () => {
       // Prevent duplicate signals within the same minute for accuracy
@@ -392,11 +396,65 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
       }
    };
 
-   const me = users.find(u => u.username === (user.admin || user.username)) || {};
+   const compressImage = (dataUrl) => {
+      return new Promise((resolve) => {
+         const img = new Image();
+         img.src = dataUrl;
+         img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 640; // Reduced for multi-photo stability
+            const scale = Math.min(1, MAX_WIDTH / img.width);
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            // Quality 0.5 significantly reduces size while keeping visual clarity
+            resolve(canvas.toDataURL('image/jpeg', 0.5));
+         };
+      });
+   };
+
+
+   const handleSitePhotoUpload = async (e) => {
+      const files = Array.from(e.target.files);
+      const validFiles = files.filter(file => file.size <= 5 * 1024 * 1024);
+      
+      if (validFiles.length !== files.length) {
+         showToast("Error", "Some images were skipped (must be under 5MB)");
+      }
+
+      if (sitePhotos.length + validFiles.length > 5) {
+         showToast("Error", "Maximum 5 photos allowed.");
+         return;
+      }
+
+      setIsCompressing(true);
+      let index = 0;
+      for (const file of validFiles) {
+         const reader = new FileReader();
+         const readTask = new Promise((resolve) => {
+            reader.onloadend = async () => {
+               const compressed = await compressImage(reader.result);
+               setSitePhotos(prev => [...prev, compressed]);
+               resolve();
+            };
+         });
+         reader.readAsDataURL(file);
+         await readTask;
+         index++;
+      }
+      setIsCompressing(false);
+      if (validFiles.length === 0) setIsCompressing(false);
+      e.target.value = '';
+   };
+
+
+
+   const me = (users || []).find(u => u.username === (user.admin || user.username)) || {};
    const currentPoints = fetchUserPoints(me.username);
 
    // Filtering logic to ensure CEOs see all entries while staff see their own
-   const displayedTasks = (user.role === 'CEO' || user.role === 'Manager') ? tasks : tasks.filter(t => t.assignee === user.username || t.assignee === user.admin);
+   const displayedTasks = (user.role === 'CEO' || user.role === 'Manager') ? (tasks || []) : (tasks || []).filter(t => t.assignee === user.username || t.assignee === user.admin);
 
    const handleAddUser = (e) => {
       e.preventDefault();
@@ -411,43 +469,93 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
       });
    };
 
-   const handleAddSiteLog = (e) => {
-      e.preventDefault();
-      const isEdit = !!editingTask;
-      const url = isEdit ? `${API_BASE_URL}/admin/edit_task` : `${API_BASE_URL}/admin/add_task`;
-      const bodyData = {
-         task: siteDesc,
-         deadline: `${siteName} - ${sitePhone}`,
-         submission_date: submissionDate,
-         created_at_date: taskCreatedDate
-      };
+    const handleAddSiteLog = async (e) => {
+       if (e) e.preventDefault();
+       
+       // Manual Validation for better feedback
+       if (!siteName || !sitePhone || !siteDesc) {
+          showToast("Error", "Please fill in all customer and site details.");
+          return;
+       }
+       if (sitePhotos.length < 3 && !editingTask) {
+          showToast("Error", `Evidence required: ${sitePhotos.length}/3 photos added.`);
+          return;
+       }
 
-      if (isEdit) bodyData.task_id = editingTask._id;
-      else bodyData.assignee = user.admin || user.username;
+       setIsAddingTask(true);
+       const isEdit = !!editingTask;
+       const url = isEdit ? `${API_BASE_URL}/admin/edit_task` : `${API_BASE_URL}/admin/add_task`;
+       
+       let location = null;
+       // Attempt Location Capture - Mandatory as per request
+       if (!isEdit) {
+          try {
+             const pos = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                   enableHighAccuracy: true, timeout: 8000 // 8s for mandatory lock
+                });
+             });
+             location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+             console.log("📍 Location verified:", location);
+          } catch (err) {
+             console.error("GPS capture failed:", err);
+             showToast("Error", "Site Location is compulsory. Please check GPS settings.");
+             setIsAddingTask(false);
+             return; // Stop submission
+          }
+       }
 
-      fetch(url, {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify(bodyData)
-      }).then(r => r.json()).then(res => {
-         showToast("done successfully :)", res.message);
-         setShowAddTaskModal(false);
-         setEditingTask(null);
-         fetchData();
-         setSiteName(''); setSitePhone(''); setSiteDesc(''); setSubmissionDate(''); setTaskCreatedDate('');
-      });
-   };
+       const bodyData = {
+          task: siteDesc,
+          deadline: `${siteName} - ${sitePhone}`,
+          submission_date: submissionDate || new Date().toISOString().split('T')[0],
+          created_at_date: taskCreatedDate || new Date().toISOString().split('T')[0],
+          location,
+          site_photos: sitePhotos
+       };
 
-   const handleEditTaskInit = (t) => {
-      setEditingTask(t);
-      const [name, phone] = (t.deadline || "").split(" - ");
-      setSiteName(name || "");
-      setSitePhone(phone || "");
-      setSiteDesc(t.task || "");
-      setSubmissionDate(t.submission_date || "");
-      setTaskCreatedDate(t.created_at_date || "");
-      setShowAddTaskModal(true);
-   };
+       if (isEdit) bodyData.task_id = editingTask._id;
+       else bodyData.assignee = user.admin || user.username;
+
+       try {
+          const response = await fetch(url, {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify(bodyData)
+          });
+
+          const res = await response.json();
+
+          if (response.ok && res.status === 'success') {
+             showToast("Success", "Visit logged successfully!");
+             await fetchData();
+             setShowAddTaskModal(false);
+             setEditingTask(null);
+             setSiteName(''); setSitePhone(''); setSiteDesc(''); setSitePhotos([]);
+          } else {
+             showToast("Error", res.message || "Submission failed");
+          }
+       } catch (err) {
+          showToast("Error", "Network connection issues. Please try again.");
+       } finally {
+          setIsAddingTask(false);
+       }
+    };
+
+
+
+    const handleEditTaskInit = (t) => {
+       setEditingTask(t);
+       const [name, phone] = (t.deadline || "").split(" - ");
+       setSiteName(name || "");
+       setSitePhone(phone || "");
+       setSiteDesc(t.task || "");
+       setSubmissionDate(t.submission_date || "");
+       setTaskCreatedDate(t.created_at_date || "");
+       setSitePhotos(t.site_photos || (t.site_photo ? [t.site_photo] : []));
+       setShowAddTaskModal(true);
+    };
+
 
    const handleDeleteTask = (taskId) => {
       setItemToDelete(taskId);
@@ -791,7 +899,84 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
       );
    };
 
-   // PROFILE COMPONENT
+   const renderVisitLogs = () => {
+      const logs = displayedTasks;
+      return (
+         <div className="table-section" style={{ minHeight: '80vh', background: 'white', padding: '2rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+            <div className="table-header">
+               <div>
+                  <h2 style={{ fontSize: '1.8rem', color: '#111827' }}>Visit Evidence Logs</h2>
+                  <p style={{ color: '#6b7280', marginTop: '0.5rem' }}>Full audit trail of all site visits and activities</p>
+               </div>
+               <div className="table-actions">
+                  <button className="primary-btn" onClick={() => setShowAddTaskModal(true)}>+ New Visit Log</button>
+               </div>
+            </div>
+            <div className="table-responsive mt">
+               <table className="modern-table">
+                  <thead><tr><th>Submit Date</th><th>Activity Details</th><th>Staff</th><th>Customer INFO</th><th>Site Location</th><th>Status</th><th>Actions</th></tr></thead>
+                  <tbody>
+                     {logs.map((t, i) => (
+                        <tr key={i} onClick={() => setFocusedTask(t)} style={{ cursor: 'pointer' }}>
+                           <td className="date-col">{t.submission_date || 'Today'}</td>
+                           <td className="bold">{t.task}</td>
+                           <td className="emp-col" onClick={(e) => {
+                              e.stopPropagation();
+                              const emp = users.find(u => u.username === t.assignee);
+                              if (emp) navToProfile(emp);
+                           }} style={{ cursor: 'pointer' }}>@{t.assignee}</td>
+                           <td className="info-col">{t.deadline}</td>
+                           <td>
+                              {t.location ? (
+                                 <a 
+                                    href={`https://www.google.com/maps?q=${t.location.lat},${t.location.lng}`} 
+                                    target="_blank" 
+                                    rel="noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{ 
+                                       background: '#ecfdf5', 
+                                       color: '#10b981', 
+                                       padding: '6px 12px', 
+                                       borderRadius: '8px', 
+                                       fontSize: '0.75rem', 
+                                       fontWeight: 800, 
+                                       textDecoration: 'none', 
+                                       display: 'inline-flex', 
+                                       alignItems: 'center', 
+                                       gap: '6px',
+                                       border: '1px solid #10b981'
+                                    }}
+                                 >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                    VIEW SITE
+                                 </a>
+                              ) : <span style={{ color: '#9ca3af' }}>No GPS</span>}
+                           </td>
+                           <td onClick={(e) => e.stopPropagation()}>
+                              <span className={`status-pill ${(t.status || 'Pending').toLowerCase()}`}>{t.status || 'Pending'}</span>
+                           </td>
+                           <td style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+                              <button className="action-toggle" onClick={() => setActiveTaskMenu(activeTaskMenu === t._id ? null : t._id)}>
+                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
+                              </button>
+                              {activeTaskMenu === t._id && (
+                                 <TaskActionMenu
+                                    onEdit={() => handleEditTaskInit(t)}
+                                    onDelete={() => handleDeleteTask(t._id)}
+                                    onClose={() => setActiveTaskMenu(null)}
+                                 />
+                               )}
+                           </td>
+                        </tr>
+                     ))}
+                     {logs.length === 0 && <tr><td colSpan="6" className="empty-state">No visit logs found.</td></tr>}
+                  </tbody>
+               </table>
+            </div>
+         </div>
+      );
+   };
+
    const renderProfile = () => {
       if (!selectedProfile) return null;
       const pUser = selectedProfile;
@@ -886,10 +1071,15 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                   Overview
                </div>
 
-               <div className={`nav-item ${currentView === 'Reports' ? 'active' : ''}`} onClick={() => { setCurrentView('Reports'); setFocusedTask(null); setSidebarOpen(false); }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" /></svg>
-                  Reports
-               </div>
+                <div className={`nav-item ${currentView === 'Reports' ? 'active' : ''}`} onClick={() => { setCurrentView('Reports'); setFocusedTask(null); setSidebarOpen(false); }}>
+                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" /></svg>
+                   Analytics
+                </div>
+                
+                <div className={`nav-item ${currentView === 'VisitLogs' ? 'active' : ''}`} onClick={() => { setCurrentView('VisitLogs'); setFocusedTask(null); setSidebarOpen(false); }}>
+                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" /></svg>
+                   Visit Reports
+                </div>
                {user.role !== 'Manager' && (
                   <div className="nav-item" onClick={() => setShowAddTaskModal(true)}>
                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg>
@@ -926,12 +1116,14 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                </div>
                <div className="nav-links">
                   <span className={currentView === 'Overview' && !selectedProfile ? 'active' : ''} onClick={() => { setCurrentView('Overview'); setSelectedProfile(null); }}>Dashboard</span>
-                  <span className={currentView === 'Reports' ? 'active' : ''} onClick={() => { setCurrentView('Reports'); setSelectedProfile(null); }}>Reports</span>
+                  <span className={currentView === 'VisitLogs' ? 'active' : ''} onClick={() => { setCurrentView('VisitLogs'); setSelectedProfile(null); }}>Visit Reports</span>
+                  <span className={currentView === 'Reports' ? 'active' : ''} onClick={() => { setCurrentView('Reports'); setSelectedProfile(null); }}>Analytics</span>
                </div>
                <div className="user-profile" onClick={() => navToProfile(me)}>
                   <div className="avatar">
-                     {me.profile_pic ? <img src={me.profile_pic} alt="dp" /> : user.role[0]}
+                     {me.profile_pic ? <img src={me.profile_pic} alt="dp" /> : (user?.role?.[0] || (user?.username || user || "U")[0]).toUpperCase()}
                   </div>
+
                   <div className="user-info">
                      <span className="name">{me.name || user.admin || user.username}</span>
                      <span className="role">{user.role}</span>
@@ -987,7 +1179,8 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                      {!focusedTask && currentView === 'Attendance' && renderAttendance()}
                      {!focusedTask && currentView === 'Profile' && selectedProfile && renderProfile()}
 
-                     {!focusedTask && currentView === 'Overview' && !selectedProfile && (() => {
+                     {currentView === 'VisitLogs' && !focusedTask && !selectedProfile && renderVisitLogs()}
+               {!focusedTask && currentView === 'Overview' && !selectedProfile && (() => {
                         const myLog = (attendanceLogs || []).find(l => (l.username === me.username) && (l.date === new Date().toLocaleString('sv-SE').split(' ')[0]));
                         return (
                            <>
@@ -1116,7 +1309,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                                     <table className="modern-table">
                                        <thead><tr><th>Submit Date</th><th>Activity Details</th><th>Assigned Staff</th><th>Customer INFO</th><th>Status</th><th>Actions</th></tr></thead>
                                        <tbody>
-                                          {displayedTasks.map((t, i) => (
+                                          {displayedTasks.slice(0, 8).map((t, i) => (
                                              <tr key={i} onClick={() => setFocusedTask(t)} style={{ cursor: 'pointer' }}>
                                                 <td className="date-col">{t.submission_date || 'Today'}</td>
                                                 <td className="bold">{t.task}</td>
@@ -1308,16 +1501,47 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                         <div className="input-group"><label>Customer/Site Name</label><input type="text" value={siteName} onChange={(e) => setSiteName(e.target.value)} required placeholder="Ramesh Residence" /></div>
                         <div className="input-group mt"><label>Phone Number</label><input type="text" value={sitePhone} onChange={(e) => setSitePhone(e.target.value.replace(/\D/g, '').slice(0, 10))} required placeholder="9876543210" /></div>
                         <div className="input-group mt"><label>Site Request Overview</label><input type="text" value={siteDesc} onChange={(e) => setSiteDesc(e.target.value)} required placeholder="Need 4 sliding windows" /></div>
+                        
+                        <div className="input-group mt">
+                           <label style={{ color: '#10b981', fontWeight: 800 }}>📸 Site Photos (Min 3, Max 5)</label>
+                           <input type="file" accept="image/*" multiple onChange={handleSitePhotoUpload} />
+
+                           
+                           {sitePhotos.length > 0 && (
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '10px', marginTop: '1rem' }}>
+                                 {sitePhotos.map((p, idx) => (
+                                    <div key={idx} style={{ position: 'relative', aspectRatio: '1/1' }}>
+                                       <img src={p} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e5e7eb' }} alt="Site preview" />
+                                       <button 
+                                          type="button" 
+                                          onClick={() => setSitePhotos(prev => prev.filter((_, i) => i !== idx))}
+                                          style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                       >
+                                          ×
+                                       </button>
+                                    </div>
+                                 ))}
+                              </div>
+                           )}
+                           <p style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '0.3rem' }}>
+                              * {sitePhotos.length}/5 photos added. {3 - sitePhotos.length > 0 ? `${3 - sitePhotos.length} more required.` : "Requirement met."}
+                           </p>
+                           <p style={{ fontSize: '0.7rem', color: '#6b7280' }}>* Location will be automatically captured upon submission.</p>
+                        </div>
+
                         <div className="grid-2 mt">
-                           <div className="input-group"><label>Task Created Date (Gauge Sync)</label><input type="date" value={taskCreatedDate} onChange={(e) => setTaskCreatedDate(e.target.value)} required /></div>
+                           <div className="input-group"><label>Task Created Date (Sync)</label><input type="date" value={taskCreatedDate} onChange={(e) => setTaskCreatedDate(e.target.value)} required /></div>
                            <div className="input-group"><label>Submission Date</label><input type="date" value={submissionDate} onChange={(e) => setSubmissionDate(e.target.value)} required /></div>
                         </div>
                         <div className="modal-actions mt">
-                           <button type="button" className="btn-cancel" onClick={() => { setShowAddTaskModal(false); setEditingTask(null); }}>Cancel</button>
-                           <button type="submit" className="btn-submit">{editingTask ? 'Apply Changes' : 'Submit Details'}</button>
+                           <button type="button" className="btn-cancel" onClick={() => { setShowAddTaskModal(false); setEditingTask(null); setSitePhotos([]); }}>Cancel</button>
+                           <button type="submit" className="btn-submit" disabled={isAddingTask || isCompressing || sitePhotos.length < (editingTask ? 0 : 3)}>
+                              {isAddingTask ? 'Uploading Evidence...' : isCompressing ? 'Optimizing Images...' : (editingTask ? 'Apply Changes' : 'Submit Visit Details')}
+                           </button>
                         </div>
                      </form>
                   )}
+
                   {(showAddUserModal || showEditModal) && (
                      <form onSubmit={showEditModal ? handleUpdateUser : handleAddUser}>
                         <div className="grid-2 mt">
@@ -1678,15 +1902,9 @@ const ProfileLayout = styled.div`
   
   @keyframes progress { 0% { stroke-dasharray: 0 100; } }
 
-    
-    .greeting h1 { font-size: 1.5rem; }
-    .metrics-grid { grid-template-columns: 1fr; gap: 1rem; }
-    
-    .table-section { padding: 1rem; }
-    .modern-table th, .modern-table td { padding: 0.75rem; font-size: 0.8rem; }
-    
-    .ceo-overview { padding: 1rem; }
-    .employee-list { gap: 0.5rem; }
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    .prof-left { margin-bottom: 1.5rem; }
   }
 
   .tracker-view { padding: 1rem; animation: fadeIn 0.4s ease-out; }
@@ -1700,6 +1918,7 @@ const ProfileLayout = styled.div`
   .btn-gmaps { margin-top: 1.5rem; display: flex; align-items: center; gap: 0.5rem; background: #111827; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: background 0.2s; }
   .btn-gmaps:hover { background: #10b981; }
 `;
+
 
 const ToastPopupWrapper = styled.div`
   position: absolute; bottom: 2rem; right: 2rem; z-index: 10000; display: flex; flex-direction: column; gap: 8px; width: 288px; font-family: inherit; animation: slideIn 0.3s ease;

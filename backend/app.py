@@ -30,14 +30,23 @@ file_handler.setFormatter(log_formatter)
 file_handler.setLevel(logging.INFO)
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # 16MB Limit
 app.logger.addHandler(file_handler)
+
 app.logger.setLevel(logging.INFO)
 app.logger.info('Delta UPVC Backend Startup')
 
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 # Register Blueprints with unified /api prefix
+@app.before_request
+def log_request_info():
+    app.logger.info('Headers: %s', request.headers)
+    app.logger.info('Body: %s', request.get_data(as_text=True)[:100] + '...') # Log first 100 chars
+    print(f"REQUEST: {request.method} {request.path}")
+
 app.register_blueprint(auth_bp, url_prefix='/api')
+
 app.register_blueprint(tasks_bp, url_prefix='/api')
 app.register_blueprint(attendance_bp, url_prefix='/api')
 app.register_blueprint(contacts_bp, url_prefix='/api')
