@@ -47,8 +47,19 @@ system_logs = db['system_logs'] if db is not None else None
 attendance_logs = db['attendance_logs'] if db is not None else None
 
 def init_system():
-    import datetime
     if verify_connection():
+        try:
+            tasks_collection.create_index("assignee")
+            tasks_collection.create_index("status")
+            tasks_collection.create_index([("created_at", -1)])
+            admins_collection.create_index("username", unique=True)
+            attendance_logs.create_index([("username", 1), ("date", -1)])
+            attendance_logs.create_index([("date", -1)])
+            print("Database Indexes verified for ultra-fast queries.")
+        except Exception as e:
+            print(f"Index Error: {e}")
+
+
         if admins_collection.count_documents({"username": "ceo_delta"}) == 0:
             admins_collection.insert_one({
                 "name": os.environ.get("CEO_NAME", "Delta CEO"),
@@ -59,6 +70,6 @@ def init_system():
                 "role": "CEO",
                 "created_at": get_now()
             })
-            print("👤 Master CEO Account Initialized.")
+            print("Master CEO Account Initialized.")
 
 init_system()

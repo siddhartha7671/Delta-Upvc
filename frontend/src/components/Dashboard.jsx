@@ -164,6 +164,13 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
     const [isCompressing, setIsCompressing] = useState(false);
     const [isLocating, setIsLocating] = useState(false);
 
+    // Visit Logs Filtering States
+    const [logStaffFilter, setLogStaffFilter] = useState('All');
+    const [logDateFilter, setLogDateFilter] = useState(''); // YYYY-MM-DD
+    const [logMonthFilter, setLogMonthFilter] = useState(''); // YYYY-MM
+    const [logSearchQuery, setLogSearchQuery] = useState('');
+    const [logStatusFilter, setLogStatusFilter] = useState('All');
+
    const pushTrace = () => {
       // Prevent duplicate signals within the same minute for accuracy
       const currentMin = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -206,10 +213,27 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
       // High-Fidelity Background Journey Tracker (Uses watchPosition for mobile reliability)
       const shouldTrack = localStatus === 'online' && user.role === 'Employe';
       let watchId = null;
+      let pulseInterval = null;
+
+      const executePulse = () => {
+         if (localStatus !== 'online') return;
+         if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(pos => {
+               const b = { username: user.admin || user.username, lat: pos.coords.latitude, lng: pos.coords.longitude };
+               fetch(`${API_BASE_URL}/admin/track_location`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(b) }).catch(()=>{});
+               fetch(`${API_BASE_URL}/admin/attendance_trace`, { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(b) }).catch(()=>{});
+               lastPulseTime.current = Date.now();
+               console.log("15-Min Signal Pushed");
+            }, null, { enableHighAccuracy: true });
+         }
+      };
 
       if (shouldTrack) {
-         // Perform initial pulse immediately on clock-in
-         pushTrace();
+         executePulse(); // Start immediately
+         pulseInterval = setInterval(() => {
+            const now = Date.now();
+            if (now - lastPulseTime.current >= 15 * 60 * 1000) executePulse();
+         }, 60000); 
          lastPulseTime.current = Date.now();
 
          // Register persistent GPS watch with the mobile OS
@@ -249,7 +273,10 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
          });
       }
 
-      return () => { if (watchId) navigator.geolocation.clearWatch(watchId); };
+      return () => { 
+         if (watchId) navigator.geolocation.clearWatch(watchId); 
+         if (pulseInterval) clearInterval(pulseInterval);
+      };
    }, [localStatus]);
 
    const [toast, setToast] = useState({ visible: false, title: "", message: "" });
@@ -457,7 +484,33 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
    const currentPoints = fetchUserPoints(me.username);
 
    // Filtering logic to ensure CEOs see all entries while staff see their own
-   const displayedTasks = (user.role === 'CEO' || user.role === 'Manager') ? (tasks || []) : (tasks || []).filter(t => t.assignee === user.username || t.assignee === user.admin);
+    const displayedTasks = useMemo(() => {
+       let filtered = (user.role === 'CEO' || user.role === 'Manager') 
+           ? (tasks || []) 
+           : (tasks || []).filter(t => t.assignee === user.username || t.assignee === user.admin);
+       
+       if (logStaffFilter !== 'All') {
+          filtered = filtered.filter(t => t.assignee === logStaffFilter);
+       }
+       if (logDateFilter) {
+          filtered = filtered.filter(t => t.submission_date === logDateFilter);
+       }
+       if (logMonthFilter) {
+          filtered = filtered.filter(t => (t.submission_date || '').startsWith(logMonthFilter));
+       }
+       if (logSearchQuery) {
+          const sq = logSearchQuery.toLowerCase();
+          filtered = filtered.filter(t => 
+             (t.task || '').toLowerCase().includes(sq) || 
+             (t.deadline || '').toLowerCase().includes(sq)
+          );
+       }
+       if (logStatusFilter !== 'All') {
+          filtered = filtered.filter(t => (t.status || 'Pending') === logStatusFilter);
+       }
+       
+       return filtered;
+    }, [tasks, user.role, user.username, user.admin, logStaffFilter, logDateFilter, logMonthFilter, logSearchQuery, logStatusFilter]);
 
    const handleAddUser = (e) => {
       e.preventDefault();
@@ -904,17 +957,91 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
 
    const renderVisitLogs = () => {
       const logs = displayedTasks;
+      const staffMembers = users;
+
       return (
-         <div className="table-section" style={{ minHeight: '80vh', background: 'white', padding: '2rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-            <div className="table-header">
+         <div className="table-section responsive-visit-logs" style={{ minHeight: '80vh', background: 'white', padding: '1.2rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+            <div className="table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '2rem' }}>
                <div>
-                  <h2 style={{ fontSize: '1.8rem', color: '#111827' }}>Visit Evidence Logs</h2>
-                  <p style={{ color: '#6b7280', marginTop: '0.5rem' }}>Full audit trail of all site visits and activities</p>
+                  <h2 style={{ fontSize: '1.8rem', color: '#111827', margin: 0 }}>Visit Evidence Logs</h2>
+                  <p style={{ color: '#6b7280', marginTop: '0.5rem', fontSize: '0.9rem' }}>Full audit trail of all site visits and activities</p>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '12px', padding: '6px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '2rem', fontSize: '0.7rem', fontWeight: 800, color: '#475569', letterSpacing: '0.5px' }}>
+                     <div style={{ width: '8px', height: '8px', background: '#10b981', borderRadius: '50%', boxShadow: '0 0 8px rgba(16,185,129,0.4)' }}></div>
+                     SHOWING {logs.length} {logs.length === 1 ? 'VISIT' : 'VISITS'}
+                  </div>
                </div>
-               <div className="table-actions">
-                  <button className="primary-btn" onClick={() => setShowAddTaskModal(true)}>+ New Visit Log</button>
+
+               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {(user.role === 'CEO' || user.role === 'Manager') && (
+                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                           <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#9ca3af' }}>DAY FILTER</span>
+                           <input type="date" value={logDateFilter} onChange={(e) => { setLogDateFilter(e.target.value); setLogMonthFilter(''); }} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #f1f5f9', background: '#f8fafc', fontSize: '0.85rem', fontWeight: 600, color: '#111827' }} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                           <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#9ca3af' }}>MONTH FILTER</span>
+                           <input type="month" value={logMonthFilter} onChange={(e) => { setLogMonthFilter(e.target.value); setLogDateFilter(''); }} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #f1f5f9', background: '#f8fafc', fontSize: '0.85rem', fontWeight: 600, color: '#111827' }} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                           <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#9ca3af' }}>SEARCH</span>
+                           <div style={{ position: 'relative' }}>
+                              <input type="text" placeholder="Name/Phone..." value={logSearchQuery} onChange={(e) => setLogSearchQuery(e.target.value)} style={{ padding: '8px 12px 8px 35px', borderRadius: '10px', border: '1px solid #f1f5f9', background: '#f8fafc', fontSize: '0.85rem', fontWeight: 600, minWidth: '220px' }} />
+                              <svg style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                           </div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                           <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#9ca3af' }}>STATUS</span>
+                           <select value={logStatusFilter} onChange={(e) => setLogStatusFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #f1f5f9', background: '#f8fafc', fontSize: '0.85rem', fontWeight: 600 }}>
+                              <option value="All">All Status</option><option value="Pending">Pending</option><option value="Processing">Processing</option><option value="Delivered">Delivered</option>
+                           </select>
+                        </div>
+                        {(logDateFilter || logMonthFilter || logStaffFilter !== 'All' || logSearchQuery || logStatusFilter !== 'All') && (
+                           <button onClick={() => { setLogDateFilter(''); setLogMonthFilter(''); setLogStaffFilter('All'); setLogSearchQuery(''); setLogStatusFilter('All'); }} style={{ background: '#fee2e2', color: '#ef4444', border: 'none', padding: '10px 15px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 800 }}>RESET</button>
+                        )}
+                     </div>
+                  )}
+                  <button className="primary-btn" onClick={() => setShowAddTaskModal(true)} style={{ padding: '0.8rem 1.6rem', fontWeight: 800 }}>+ New Visit Log</button>
                </div>
             </div>
+
+            {/* STAFF SELECTION BAR (CEO/Manager only) */}
+            {(user.role === 'CEO' || user.role === 'Manager') && (
+               <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '1rem 0', marginBottom: '2rem', borderBottom: '1px solid #f1f5f9', scrollbarWidth: 'none' }}>
+                  <div 
+                     onClick={() => setLogStaffFilter('All')}
+                     style={{ 
+                        flexShrink: 0, padding: '12px 24px', borderRadius: '14px', cursor: 'pointer',
+                        background: logStaffFilter === 'All' ? '#111827' : '#f8fafc',
+                        color: logStaffFilter === 'All' ? 'white' : '#64748b',
+                        fontWeight: 800, fontSize: '0.9rem', display: 'flex', alignItems: 'center', transition: '0.3s',
+                        border: `2px solid ${logStaffFilter === 'All' ? '#111827' : 'transparent'}`,
+                        boxShadow: logStaffFilter === 'All' ? '0 10px 15px -3px rgba(0,0,0,0.1)' : 'none'
+                     }}
+                  >
+                     All Organizational Logs
+                  </div>
+                  {staffMembers.map(u => (
+                     <div 
+                        key={u._id}
+                        onClick={() => setLogStaffFilter(u.username)}
+                        style={{ 
+                           flexShrink: 0, display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 18px', borderRadius: '14px', cursor: 'pointer',
+                           background: logStaffFilter === u.username ? '#10b981' : '#f8fafc',
+                           color: logStaffFilter === u.username ? 'white' : '#1e293b',
+                           border: `2px solid ${logStaffFilter === u.username ? '#10b981' : '#f1f5f9'}`,
+                           transition: '0.3s',
+                           boxShadow: logStaffFilter === u.username ? '0 10px 15px -3px rgba(16,185,129,0.2)' : 'none'
+                        }}
+                     >
+                        <img src={u.profile_pic || 'https://i.pravatar.cc/100'} alt="" style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid white' }} />
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                           <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>@{u.username}</span>
+                           <span style={{ fontSize: '0.65rem', fontWeight: 700, opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{u.role}</span>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+            )}
             <div className="table-responsive mt">
                <table className="modern-table">
                   <thead><tr><th>Submit Date</th><th>Activity Details</th><th>Staff</th><th>Customer INFO</th><th>Site Location</th><th>Status</th><th>Actions</th></tr></thead>
@@ -956,7 +1083,20 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                               ) : <span style={{ color: '#9ca3af' }}>No GPS</span>}
                            </td>
                            <td onClick={(e) => e.stopPropagation()}>
-                              <span className={`status-pill ${(t.status || 'Pending').toLowerCase()}`}>{t.status || 'Pending'}</span>
+                              {(user.role === 'CEO' || user.role === 'Manager') ? (
+                                 <select 
+                                    className={`status-pill ${(t.status || 'Pending').toLowerCase()}`} 
+                                    value={t.status || 'Pending'} 
+                                    onChange={(e) => handleUpdateTaskStatus(t._id, e.target.value)}
+                                    style={{ border: 'none', cursor: 'pointer', fontWeight: 800, padding: '4px 12px', borderRadius: '12px' }}
+                                 >
+                                    <option value="Pending">Pending</option>
+                                    <option value="Processing">Processing</option>
+                                    <option value="Delivered">Delivered</option>
+                                 </select>
+                              ) : (
+                                 <span className={`status-pill ${(t.status || 'Pending').toLowerCase()}`}>{t.status || 'Pending'}</span>
+                              )}
                            </td>
                            <td style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
                               <button className="action-toggle" onClick={() => setActiveTaskMenu(activeTaskMenu === t._id ? null : t._id)}>
@@ -1135,7 +1275,6 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
             </TopNav>
             <Content>
                {/* BACKGROUND TRACKER FOR EMPLOYEES */}
-               {user.role !== 'CEO' && <EmployeeTracker username={user.username} />}
 
                {selectedStaffLog ? (
                   <div className="staff-detail-keka" style={{ padding: '2rem 1.5rem', background: 'white', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', maxWidth: '600px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>

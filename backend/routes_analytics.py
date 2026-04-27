@@ -5,7 +5,7 @@ import datetime
 analytics_bp = Blueprint('analytics', __name__)
 
 def calculate_user_points(username):
-    tasks = list(tasks_collection.find({"assignee": username}))
+    tasks = list(tasks_collection.find({"assignee": username}, {"status": 1, "_id": 0}))
     pts = 0
     for t in tasks:
         # Robust case-insensitive status check
@@ -32,7 +32,7 @@ def get_analytics():
     if username:
         query["assignee"] = username
     
-    all_tasks = list(tasks_collection.find(query))
+    all_tasks = list(tasks_collection.find(query, {"status": 1, "created_at_date": 1, "submission_date": 1, "assignee": 1, "_id": 0}))
     
     # 2. Gauge Data
     now = get_now()
