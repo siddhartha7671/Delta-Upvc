@@ -4,16 +4,23 @@ import styled from 'styled-components';
 const TaskDetailView = ({ task, onBack }) => {
   if (!task) return null;
 
-  const steps = [
+  let steps = [
     { title: "Order Placed", status: "Completed", key: "Pending" },
     { title: "Processing", status: "In Progress", key: "Processing" },
     { title: "Delivered", status: "Pending", key: "Delivered" },
   ];
 
+  if (task.status === "Cancelled") {
+    steps = [
+      { title: "Order Placed", status: "Completed", key: "Pending" },
+      { title: "Cancelled", status: "Terminated", key: "Cancelled" }
+    ];
+  }
+
   // Determine current step index based on task status
   const getStatusIndex = (status) => {
     if (status === "Delivered") return 2;
-    if (status === "Processing") return 1;
+    if (status === "Processing" || status === "Cancelled") return 1;
     return 0; // Pending
   };
 
@@ -44,6 +51,14 @@ const TaskDetailView = ({ task, onBack }) => {
             <label>Activity Description</label>
             <p className="bold-desc">{task.task}</p>
           </div>
+          
+          {task.status === 'Cancelled' && task.cancel_reason && (
+            <div className="card-section">
+              <label>Cancellation Reason</label>
+              <p className="bold-desc" style={{ color: '#ef4444' }}>{task.cancel_reason}</p>
+            </div>
+          )}
+
           
           {(task.site_photos || task.site_photo) && (
             <div className="card-section">
@@ -105,12 +120,21 @@ const TaskDetailView = ({ task, onBack }) => {
               if (isActive) statusText = task.status === "Delivered" ? "Completed" : "In Progress";
               if (isPending) statusText = "Pending";
 
+              let statusClass = isCompleted ? 'stepper-completed' : isActive ? 'stepper-active' : 'stepper-pending';
+              if (isActive && task.status === 'Cancelled') {
+                  statusClass = 'stepper-cancelled';
+              }
+
               return (
-                <div key={index} className={`stepper-step ${isCompleted ? 'stepper-completed' : isActive ? 'stepper-active' : 'stepper-pending'}`}>
+                <div key={index} className={`stepper-step ${statusClass}`}>
                   <div className="stepper-circle">
                     {isCompleted || (isActive && task.status === "Delivered") ? (
                       <svg viewBox="0 0 16 16" className="bi bi-check-lg" fill="currentColor" height={16} width={16} xmlns="http://www.w3.org/2000/svg">
                         <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z" />
+                      </svg>
+                    ) : (isActive && task.status === "Cancelled") ? (
+                      <svg viewBox="0 0 16 16" fill="currentColor" height={16} width={16} xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
                       </svg>
                     ) : (index + 1)}
                   </div>
@@ -119,7 +143,7 @@ const TaskDetailView = ({ task, onBack }) => {
                     <div className="stepper-title">{step.title}</div>
                     <div className="stepper-status">{statusText}</div>
                     <div className="stepper-time">
-                        {isActive ? "Currently Active" : isCompleted ? "Processed" : "Awaiting Action"}
+                        {isActive && task.status === "Cancelled" ? "Terminated" : isActive ? "Currently Active" : isCompleted ? "Processed" : "Awaiting Action"}
                     </div>
                   </div>
                 </div>
@@ -152,14 +176,15 @@ const Container = styled.div`
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      background: #f3f4f6;
+      background: #10b981;
+      color: white;
       border: none;
       padding: 8px 16px;
       border-radius: 8px;
       cursor: pointer;
       font-weight: 600;
       transition: all 0.2s;
-      &:hover { background: #e5e7eb; }
+      &:hover { background: #059669; }
     }
   }
 `;
@@ -290,6 +315,12 @@ const StyledWrapper = styled.div`
     color: #94a3b8;
   }
 
+  .stepper-cancelled .stepper-circle {
+    border: 2px solid #ef4444;
+    color: #ef4444;
+    box-shadow: 0 0 0 4px #fef2f2;
+  }
+
   .stepper-content {
     flex: 1;
   }
@@ -303,6 +334,7 @@ const StyledWrapper = styled.div`
   .stepper-completed .stepper-title { color: #111827; }
   .stepper-active .stepper-title { color: #10b981; }
   .stepper-pending .stepper-title { color: #94a3b8; }
+  .stepper-cancelled .stepper-title { color: #ef4444; }
 
   .stepper-status {
     font-size: 13px;
@@ -326,6 +358,11 @@ const StyledWrapper = styled.div`
   .stepper-pending .stepper-status {
     background-color: #f1f5f9;
     color: #64748b;
+  }
+
+  .stepper-cancelled .stepper-status {
+    background-color: #fee2e2;
+    color: #b91c1c;
   }
 
   .stepper-time {

@@ -6,6 +6,13 @@ import DeleteConfirmPopup from './DeleteConfirmPopup';
 import TaskDetailView from './TaskDetailView';
 import EmployeeTracker from './EmployeeTracker';
 
+const formatDisplayDate = (dateStr) => {
+   if (!dateStr || dateStr === 'Today') return 'Today';
+   const parts = dateStr.split('-');
+   if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+   return dateStr;
+};
+
 // --- ICONS ---
 const EyeIcon = ({ show }) => (
    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -131,6 +138,9 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
    const [activeTaskMenu, setActiveTaskMenu] = useState(null); // task._id
    const [editingTask, setEditingTask] = useState(null); // Full task object
    const [itemToDelete, setItemToDelete] = useState(null); // task._id for confirmation
+   const [userToDelete, setUserToDelete] = useState(null); // username for confirmation
+   const [taskToCancel, setTaskToCancel] = useState(null);
+   const [cancelReason, setCancelReason] = useState("");
    const [focusedTask, setFocusedTask] = useState(null); // Task object to view details
 
    useEffect(() => {
@@ -142,6 +152,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
    }, [showAddTaskModal]);
 
    // User Form State
+   const [isSubmittingUser, setIsSubmittingUser] = useState(false);
    const [editingUser, setEditingUser] = useState(null);
    const [newName, setNewName] = useState('');
    const [newPhone, setNewPhone] = useState('');
@@ -484,19 +495,26 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
    const currentPoints = fetchUserPoints(me.username);
 
    // Filtering logic to ensure CEOs see all entries while staff see their own
-    const displayedTasks = useMemo(() => {
-       let filtered = (user.role === 'CEO' || user.role === 'Manager') 
+   const baseTasks = useMemo(() => {
+       return (user.role === 'CEO' || user.role === 'Manager') 
            ? (tasks || []) 
            : (tasks || []).filter(t => t.assignee === user.username || t.assignee === user.admin);
+   }, [tasks, user.role, user.username, user.admin]);
+
+    const displayedTasks = useMemo(() => {
+       let filtered = [...baseTasks];
        
-       if (logStaffFilter !== 'All') {
+       if (logStaffFilter === 'Deleted') {
+          const activeUsernames = users.map(u => u.username);
+          filtered = filtered.filter(t => !activeUsernames.includes(t.assignee));
+       } else if (logStaffFilter !== 'All') {
           filtered = filtered.filter(t => t.assignee === logStaffFilter);
        }
        if (logDateFilter) {
-          filtered = filtered.filter(t => t.submission_date === logDateFilter);
+          filtered = filtered.filter(t => t.created_at_date === logDateFilter);
        }
        if (logMonthFilter) {
-          filtered = filtered.filter(t => (t.submission_date || '').startsWith(logMonthFilter));
+          filtered = filtered.filter(t => (t.created_at_date || '').startsWith(logMonthFilter));
        }
        if (logSearchQuery) {
           const sq = logSearchQuery.toLowerCase();
@@ -510,19 +528,21 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
        }
        
        return filtered;
-    }, [tasks, user.role, user.username, user.admin, logStaffFilter, logDateFilter, logMonthFilter, logSearchQuery, logStatusFilter]);
+    }, [tasks, user.role, user.username, user.admin, logStaffFilter, logDateFilter, logMonthFilter, logSearchQuery, logStatusFilter, users]);
 
    const handleAddUser = (e) => {
       e.preventDefault();
+      setIsSubmittingUser(true);
       fetch(`${API_BASE_URL}/admin/add_user`, {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({ name: newName, phone: newPhone, email: newEmail, username: newUsername, password: newPassword, role: newRole, gender: newGender, dob: newDob, profile_pic: newProfilePic })
       }).then(r => r.json()).then(res => {
+         setIsSubmittingUser(false);
          if (res.status === 'success') {
             showToast("done successfully :)", `Data saved for ${newName}`); setShowAddUserModal(false); fetchData(); clearForm();
          } else showToast("Error", res.message);
-      });
+      }).catch(() => { setIsSubmittingUser(false); showToast("Error", "Network connection failed"); });
    };
 
     const handleAddSiteLog = async (e) => {
@@ -533,8 +553,8 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
           showToast("Error", "Please fill in all customer and site details.");
           return;
        }
-       if (sitePhotos.length < 3 && !editingTask) {
-          showToast("Error", `Evidence required: ${sitePhotos.length}/3 photos added.`);
+       if (sitePhotos.length < 1 && !editingTask) {
+          showToast("Error", `Evidence required: ${sitePhotos.length}/1 photos added.`);
           return;
        }
 
@@ -630,6 +650,30 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
       });
    };
 
+   const handleCancelTaskSubmit = (e) => {
+      e.preventDefault();
+      if (!taskToCancel || !cancelReason.trim()) return;
+      
+      fetch(`${API_BASE_URL}/admin/edit_task`, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ 
+            task_id: taskToCancel._id, 
+            status: 'Cancelled',
+            cancel_reason: cancelReason 
+         })
+      }).then(r => r.json()).then(res => {
+         if (res.status === 'success') {
+            showToast("Cancelled", "Task cancelled successfully");
+            setTaskToCancel(null);
+            setCancelReason("");
+            fetchData();
+         } else {
+            showToast("Error", res.message || "Failed to cancel task");
+         }
+      }).catch(() => showToast("Error", "Network error"));
+   };
+
    const handleUpdateTaskStatus = (taskId, newStatus) => {
       fetch(`${API_BASE_URL}/admin/update_task_status`, {
          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task_id: taskId, status: newStatus })
@@ -654,6 +698,31 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
          method: 'POST', headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({ name: newName, phone: newPhone, email: newEmail, username: newUsername, password: newPassword, role: newRole, isUpdate: true, gender: newGender, dob: newDob, profile_pic: newProfilePic })
       }).then(r => r.json()).then(res => { showToast("done successfully :)", res.message); setShowEditModal(false); fetchData(); });
+   };
+
+   const handleDeleteUser = (uname) => {
+      setUserToDelete(uname);
+   };
+
+   const confirmDeleteUser = () => {
+      if (!userToDelete) return;
+      fetch(`${API_BASE_URL}/admin/delete_user`, {
+         method: 'DELETE',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ username: userToDelete })
+      }).then(r => r.json()).then(res => {
+         if (res.status === 'success') {
+            showToast("Removed", "Employee profile deleted.");
+            if (selectedProfile && selectedProfile.username === userToDelete) {
+               setCurrentView('Overview');
+               setSelectedProfile(null);
+            }
+            setUserToDelete(null);
+            fetchData();
+         } else {
+            showToast("Error", res.message || "Failed to delete");
+         }
+      });
    };
 
    useEffect(() => {
@@ -686,8 +755,8 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
 
    // ANALYTICS COMPONENTS
    const renderAnalytics = () => {
-      const breakdown = analytics?.breakdown || { delivered: 0, processing: 0, pending: 0, total: 1 };
-      const { delivered, processing, pending } = breakdown;
+      const breakdown = analytics?.breakdown || { delivered: 0, processing: 0, pending: 0, cancelled: 0, total: 1 };
+      const { delivered, processing, pending, cancelled } = breakdown;
       const total = breakdown.total || 1;
 
       const gauge = analytics?.gauge || { count: 0, percentage: 0, trend: "...", trendColor: "#ccc", todayStr: "" };
@@ -697,7 +766,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
             <div className="a-card wide">
                <h3>{user.role === 'CEO' ? 'Company Lead Funnel' : 'Your Lead Funnel'}</h3>
                <div className="funnel-stats">
-                  <div className="f-stat"><span className="val">{displayedTasks.length}</span><span className="lbl">Total Logs</span></div>
+                  <div className="f-stat"><span className="val">{baseTasks.length}</span><span className="lbl">Total Logs</span></div>
                   <div className="f-stat"><span className="val">{Math.round(((processing + delivered) / total) * 100)}%</span><span className="lbl">Action Rate</span></div>
                   <div className="f-stat"><span className="val" style={{ color: '#10b981' }}>{Math.round((delivered / total) * 100)}%</span><span className="lbl">Delivery Success</span></div>
                </div>
@@ -708,7 +777,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                <div className="a-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <h3 style={{ margin: '0 0 0.5rem 0' }}>{user.role === 'CEO' ? 'Overall Productivity' : 'Performance Level'}</h3>
                   <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#111827' }}>
-                     {user.role === 'CEO' ? `${displayedTasks.length} Tasks` : `Lv. ${calculateLevel(fetchUserPoints(me.username))}`}
+                     {user.role === 'CEO' ? `${baseTasks.length} Tasks` : `Lv. ${calculateLevel(fetchUserPoints(me.username))}`}
                   </div>
                   <div style={{ fontSize: '0.85rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.5rem' }}>
                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
@@ -760,17 +829,21 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
             <div className="a-card wide pt-stat">
                <h3>Status Breakdown</h3>
                <div className="status-bars">
-                  <div className="sb-row">
+                  <div className="sb-row" onClick={() => { setLogStatusFilter('Delivered'); setCurrentView('AnalyticsLogs'); }} style={{cursor: 'pointer'}}>
                      <label>Delivered ({delivered})</label>
                      <div className="sb-bg"><div className="sb-fill" style={{ width: `${(delivered / total) * 100}%`, background: '#10b981' }}></div></div>
                   </div>
-                  <div className="sb-row">
+                  <div className="sb-row" onClick={() => { setLogStatusFilter('Processing'); setCurrentView('AnalyticsLogs'); }} style={{cursor: 'pointer'}}>
                      <label>Processing ({processing})</label>
                      <div className="sb-bg"><div className="sb-fill" style={{ width: `${(processing / total) * 100}%`, background: '#f59e0b' }}></div></div>
                   </div>
-                  <div className="sb-row">
+                  <div className="sb-row" onClick={() => { setLogStatusFilter('Pending'); setCurrentView('AnalyticsLogs'); }} style={{cursor: 'pointer'}}>
                      <label>Pending ({pending})</label>
                      <div className="sb-bg"><div className="sb-fill" style={{ width: `${(pending / total) * 100}%`, background: '#9ca3af' }}></div></div>
+                  </div>
+                  <div className="sb-row" onClick={() => { setLogStatusFilter('Cancelled'); setCurrentView('AnalyticsLogs'); }} style={{cursor: 'pointer'}}>
+                     <label>Cancelled ({cancelled || 0})</label>
+                     <div className="sb-bg"><div className="sb-fill" style={{ width: `${((cancelled || 0) / total) * 100}%`, background: '#ef4444' }}></div></div>
                   </div>
                </div>
             </div>
@@ -958,12 +1031,22 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
    const renderVisitLogs = () => {
       const logs = displayedTasks;
       const staffMembers = users;
+      const activeUsernames = users.map(u => u.username);
+      const deletedUsernames = [...new Set((tasks || []).filter(t => !activeUsernames.includes(t.assignee)).map(t => t.assignee))];
 
       return (
          <div className="table-section responsive-visit-logs" style={{ minHeight: '80vh', background: 'white', padding: '1.2rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
             <div className="table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '2rem' }}>
                <div>
-                  <h2 style={{ fontSize: '1.8rem', color: '#111827', margin: 0 }}>Visit Evidence Logs</h2>
+                  {currentView === 'AnalyticsLogs' && (
+                     <button onClick={() => { setCurrentView('Reports'); setLogStatusFilter('All'); }} className="back-btn" style={{ background: '#10b981', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                        Back to Analytics
+                     </button>
+                  )}
+                  <h2 style={{ fontSize: '1.8rem', color: '#111827', margin: 0 }}>
+                     {currentView === 'AnalyticsLogs' ? `${logStatusFilter} Logs` : 'Visit Evidence Logs'}
+                  </h2>
                   <p style={{ color: '#6b7280', marginTop: '0.5rem', fontSize: '0.9rem' }}>Full audit trail of all site visits and activities</p>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '12px', padding: '6px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '2rem', fontSize: '0.7rem', fontWeight: 800, color: '#475569', letterSpacing: '0.5px' }}>
                      <div style={{ width: '8px', height: '8px', background: '#10b981', borderRadius: '50%', boxShadow: '0 0 8px rgba(16,185,129,0.4)' }}></div>
@@ -973,30 +1056,30 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
 
                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
                   {(user.role === 'CEO' || user.role === 'Manager') && (
-                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: '1 1 auto', minWidth: '130px' }}>
                            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#9ca3af' }}>DAY FILTER</span>
-                           <input type="date" value={logDateFilter} onChange={(e) => { setLogDateFilter(e.target.value); setLogMonthFilter(''); }} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #f1f5f9', background: '#f8fafc', fontSize: '0.85rem', fontWeight: 600, color: '#111827' }} />
+                           <input type="date" value={logDateFilter} onChange={(e) => { setLogDateFilter(e.target.value); setLogMonthFilter(''); }} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #f1f5f9', background: '#f8fafc', fontSize: '0.85rem', fontWeight: 600, color: '#111827', width: '100%' }} />
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: '1 1 auto', minWidth: '130px' }}>
                            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#9ca3af' }}>MONTH FILTER</span>
-                           <input type="month" value={logMonthFilter} onChange={(e) => { setLogMonthFilter(e.target.value); setLogDateFilter(''); }} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #f1f5f9', background: '#f8fafc', fontSize: '0.85rem', fontWeight: 600, color: '#111827' }} />
+                           <input type="month" value={logMonthFilter} onChange={(e) => { setLogMonthFilter(e.target.value); setLogDateFilter(''); }} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #f1f5f9', background: '#f8fafc', fontSize: '0.85rem', fontWeight: 600, color: '#111827', width: '100%' }} />
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: '1 1 auto', minWidth: '150px' }}>
                            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#9ca3af' }}>SEARCH</span>
-                           <div style={{ position: 'relative' }}>
-                              <input type="text" placeholder="Name/Phone..." value={logSearchQuery} onChange={(e) => setLogSearchQuery(e.target.value)} style={{ padding: '8px 12px 8px 35px', borderRadius: '10px', border: '1px solid #f1f5f9', background: '#f8fafc', fontSize: '0.85rem', fontWeight: 600, minWidth: '220px' }} />
+                           <div style={{ position: 'relative', width: '100%' }}>
+                              <input type="text" placeholder="Name/Phone..." value={logSearchQuery} onChange={(e) => setLogSearchQuery(e.target.value)} style={{ padding: '8px 12px 8px 35px', borderRadius: '10px', border: '1px solid #f1f5f9', background: '#f8fafc', fontSize: '0.85rem', fontWeight: 600, width: '100%' }} />
                               <svg style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
                            </div>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: '1 1 auto', minWidth: '130px' }}>
                            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#9ca3af' }}>STATUS</span>
-                           <select value={logStatusFilter} onChange={(e) => setLogStatusFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #f1f5f9', background: '#f8fafc', fontSize: '0.85rem', fontWeight: 600 }}>
-                              <option value="All">All Status</option><option value="Pending">Pending</option><option value="Processing">Processing</option><option value="Delivered">Delivered</option>
+                           <select value={logStatusFilter} onChange={(e) => setLogStatusFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #f1f5f9', background: '#f8fafc', fontSize: '0.85rem', fontWeight: 600, width: '100%' }}>
+                              <option value="All">All Status</option><option value="Pending">Pending</option><option value="Processing">Processing</option><option value="Delivered">Delivered</option><option value="Cancelled">Cancelled</option>
                            </select>
                         </div>
                         {(logDateFilter || logMonthFilter || logStaffFilter !== 'All' || logSearchQuery || logStatusFilter !== 'All') && (
-                           <button onClick={() => { setLogDateFilter(''); setLogMonthFilter(''); setLogStaffFilter('All'); setLogSearchQuery(''); setLogStatusFilter('All'); }} style={{ background: '#fee2e2', color: '#ef4444', border: 'none', padding: '10px 15px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 800 }}>RESET</button>
+                           <button onClick={() => { setLogDateFilter(''); setLogMonthFilter(''); setLogStaffFilter('All'); setLogSearchQuery(''); setLogStatusFilter('All'); }} style={{ background: '#fee2e2', color: '#ef4444', border: 'none', padding: '10px 15px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 800, flex: '0 0 auto' }}>RESET</button>
                         )}
                      </div>
                   )}
@@ -1006,7 +1089,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
 
             {/* STAFF SELECTION BAR (CEO/Manager only) */}
             {(user.role === 'CEO' || user.role === 'Manager') && (
-               <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '1rem 0', marginBottom: '2rem', borderBottom: '1px solid #f1f5f9', scrollbarWidth: 'none' }}>
+               <div className="staff-filter-scroll" style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '1rem 0 1rem 0', marginBottom: '2rem', borderBottom: '1px solid #f1f5f9', scrollbarWidth: 'none' }}>
                   <div 
                      onClick={() => setLogStaffFilter('All')}
                      style={{ 
@@ -1040,15 +1123,35 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                         </div>
                      </div>
                   ))}
+                  {deletedUsernames.length > 0 && (
+                     <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#ef4444' }}>DELETED STAFF:</span>
+                        <select 
+                           value={deletedUsernames.includes(logStaffFilter) || logStaffFilter === 'Deleted' ? logStaffFilter : 'All'} 
+                           onChange={(e) => setLogStaffFilter(e.target.value)}
+                           style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #fee2e2', background: '#fef2f2', color: '#ef4444', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+                        >
+                           <option value="All">Select...</option>
+                           <option value="Deleted">All Deleted</option>
+                           {deletedUsernames.map(uname => (
+                              <option key={uname} value={uname}>@{uname}</option>
+                           ))}
+                        </select>
+                     </div>
+                  )}
+
                </div>
             )}
-            <div className="table-responsive mt">
-               <table className="modern-table">
-                  <thead><tr><th>Submit Date</th><th>Activity Details</th><th>Staff</th><th>Customer INFO</th><th>Site Location</th><th>Status</th><th>Actions</th></tr></thead>
+            <div className="table-responsive mt" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+               <table className="modern-table" style={{ position: 'relative' }}>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f8fafc' }}>
+                     <tr><th>Entry Date</th><th>Submit Date</th><th>Activity Details</th><th>Staff</th><th>Customer INFO</th><th>Site Location</th><th>Status</th><th>Actions</th></tr>
+                  </thead>
                   <tbody>
                      {logs.map((t, i) => (
                         <tr key={i} onClick={() => setFocusedTask(t)} style={{ cursor: 'pointer' }}>
-                           <td className="date-col">{t.submission_date || 'Today'}</td>
+                           <td className="date-col" style={{ color: '#10b981', fontWeight: 600 }}>{formatDisplayDate(t.created_at_date || t.submission_date)}</td>
+                           <td className="date-col">{formatDisplayDate(t.submission_date || 'Today')}</td>
                            <td className="bold">{t.task}</td>
                            <td className="emp-col" onClick={(e) => {
                               e.stopPropagation();
@@ -1083,20 +1186,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                               ) : <span style={{ color: '#9ca3af' }}>No GPS</span>}
                            </td>
                            <td onClick={(e) => e.stopPropagation()}>
-                              {(user.role === 'CEO' || user.role === 'Manager') ? (
-                                 <select 
-                                    className={`status-pill ${(t.status || 'Pending').toLowerCase()}`} 
-                                    value={t.status || 'Pending'} 
-                                    onChange={(e) => handleUpdateTaskStatus(t._id, e.target.value)}
-                                    style={{ border: 'none', cursor: 'pointer', fontWeight: 800, padding: '4px 12px', borderRadius: '12px' }}
-                                 >
-                                    <option value="Pending">Pending</option>
-                                    <option value="Processing">Processing</option>
-                                    <option value="Delivered">Delivered</option>
-                                 </select>
-                              ) : (
-                                 <span className={`status-pill ${(t.status || 'Pending').toLowerCase()}`}>{t.status || 'Pending'}</span>
-                              )}
+                              <span className={`status-pill ${(t.status || 'Pending').toLowerCase()}`}>{t.status || 'Pending'}</span>
                            </td>
                            <td style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
                               <button className="action-toggle" onClick={() => setActiveTaskMenu(activeTaskMenu === t._id ? null : t._id)}>
@@ -1106,13 +1196,14 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                                  <TaskActionMenu
                                     onEdit={() => handleEditTaskInit(t)}
                                     onDelete={() => handleDeleteTask(t._id)}
+                                    onCancel={() => setTaskToCancel(t)}
                                     onClose={() => setActiveTaskMenu(null)}
                                  />
                                )}
                            </td>
                         </tr>
                      ))}
-                     {logs.length === 0 && <tr><td colSpan="6" className="empty-state">No visit logs found.</td></tr>}
+                     {logs.length === 0 && <tr><td colSpan="8" className="empty-state">No visit logs found.</td></tr>}
                   </tbody>
                </table>
             </div>
@@ -1153,6 +1244,9 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
 
                      {(user.role === 'CEO' || me.username === pUser.username) && (
                         <button className="primary-btn mt-full" onClick={() => handleEditInit(pUser)}>Edit Settings</button>
+                     )}
+                     {(user.role === 'CEO' || user.role === 'Manager') && pUser.role !== 'CEO' && pUser.username !== me.username && (
+                        <button className="primary-btn mt-full" style={{ background: '#ef4444', marginTop: '0.5rem' }} onClick={() => handleDeleteUser(pUser.username)}>Delete Employee</button>
                      )}
                   </div>
                </div>
@@ -1321,7 +1415,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                      {!focusedTask && currentView === 'Attendance' && renderAttendance()}
                      {!focusedTask && currentView === 'Profile' && selectedProfile && renderProfile()}
 
-                     {currentView === 'VisitLogs' && !focusedTask && !selectedProfile && renderVisitLogs()}
+                     {(currentView === 'VisitLogs' || currentView === 'AnalyticsLogs') && !focusedTask && !selectedProfile && renderVisitLogs()}
                {!focusedTask && currentView === 'Overview' && !selectedProfile && (() => {
                         const myLog = (attendanceLogs || []).find(l => (l.username === me.username) && (l.date === new Date().toLocaleString('sv-SE').split(' ')[0]));
                         return (
@@ -1399,7 +1493,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                                        <h3 style={{ color: 'white' }}>{user.role === 'CEO' ? 'Total Logistics' : 'Active Leads Logged'}</h3>
                                        <span className="card-icon">📋</span>
                                     </div>
-                                    <h2>{displayedTasks.length}</h2>
+                                    <h2>{baseTasks.length}</h2>
                                     <div className="trend" style={{ color: 'white' }}>System metrics flowing</div>
                                  </MetricCard>
 
@@ -1447,13 +1541,16 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                                        <button className="primary-btn" onClick={() => setShowAddTaskModal(true)}>+ Log Visit</button>
                                     </div>
                                  </div>
-                                 <div className="table-responsive">
-                                    <table className="modern-table">
-                                       <thead><tr><th>Submit Date</th><th>Activity Details</th><th>Assigned Staff</th><th>Customer INFO</th><th>Status</th><th>Actions</th></tr></thead>
+                                 <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                    <table className="modern-table" style={{ position: 'relative' }}>
+                                       <thead style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f8fafc' }}>
+                                          <tr><th>Entry Date</th><th>Submit Date</th><th>Activity Details</th><th>Assigned Staff</th><th>Customer INFO</th><th>Status</th><th>Actions</th></tr>
+                                       </thead>
                                        <tbody>
-                                          {displayedTasks.slice(0, 8).map((t, i) => (
+                                          {baseTasks.map((t, i) => (
                                              <tr key={i} onClick={() => setFocusedTask(t)} style={{ cursor: 'pointer' }}>
-                                                <td className="date-col">{t.submission_date || 'Today'}</td>
+                                                <td className="date-col" style={{ color: '#10b981', fontWeight: 600 }}>{formatDisplayDate(t.created_at_date || t.submission_date)}</td>
+                                                <td className="date-col">{formatDisplayDate(t.submission_date || 'Today')}</td>
                                                 <td className="bold">{t.task}</td>
                                                 <td className="emp-col" onClick={(e) => {
                                                    e.stopPropagation();
@@ -1463,8 +1560,19 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                                                 <td className="info-col">{t.deadline}</td>
                                                 <td onClick={(e) => e.stopPropagation()}>
                                                    {(user.role === 'CEO' || user.role === 'Manager') ? (
-                                                      <select className={`status-pill ${(t.status || 'Pending').toLowerCase()}`} value={t.status || 'Pending'} onChange={(e) => handleUpdateTaskStatus(t._id, e.target.value)}>
-                                                         <option value="Pending">Pending</option><option value="Processing">Processing</option><option value="Delivered">Delivered</option>
+                                                      <select 
+                                                         disabled={t.status === 'Cancelled' && user.role !== 'CEO'}
+                                                         className={`status-pill ${(t.status || 'Pending').toLowerCase()}`} 
+                                                         value={t.status || 'Pending'} 
+                                                         onChange={(e) => {
+                                                            if (e.target.value === 'Cancelled') {
+                                                               setTaskToCancel(t);
+                                                            } else {
+                                                               handleUpdateTaskStatus(t._id, e.target.value);
+                                                            }
+                                                         }}
+                                                      >
+                                                         <option value="Pending">Pending</option><option value="Processing">Processing</option><option value="Delivered">Delivered</option><option value="Cancelled">Cancelled</option>
                                                       </select>
                                                    ) : (<span className={`status-pill ${(t.status || 'Pending').toLowerCase()}`}>● {t.status || 'Pending'}</span>)}
                                                 </td>
@@ -1478,13 +1586,14 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                                                       <TaskActionMenu
                                                          onEdit={() => handleEditTaskInit(t)}
                                                          onDelete={() => handleDeleteTask(t._id)}
+                                                          onCancel={() => setTaskToCancel(t)}
                                                          onClose={() => setActiveTaskMenu(null)}
                                                       />
                                                    )}
                                                 </td>
                                              </tr>
                                           ))}
-                                          {displayedTasks.length === 0 && <tr><td colSpan="6" className="empty-state">No recent activities found in your network.</td></tr>}
+                                          {baseTasks.length === 0 && <tr><td colSpan="7" className="empty-state">No recent activities found in your network.</td></tr>}
                                        </tbody>
                                     </table>
                                  </div>
@@ -1611,6 +1720,28 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
             </div>
          )}
 
+         {/* EMPLOYEE DELETE CONFIRMATION MODAL */}
+         {userToDelete && (
+            <div className="modal-overlay" style={{ zIndex: 3000 }}>
+               <div className="modal-card" style={{ maxWidth: '400px' }}>
+                  <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                     <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>⚠️</div>
+                     <h2 style={{ margin: '0 0 0.5rem 0', color: '#111827' }}>Confirm Deletion</h2>
+                     <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: 0 }}>
+                        Are you sure you want to delete the profile for <strong>{userToDelete}</strong>?
+                     </p>
+                     <div style={{ marginTop: '1rem', background: '#ecfdf5', padding: '0.8rem', borderRadius: '0.5rem', fontSize: '0.8rem', color: '#10b981', fontWeight: '600' }}>
+                        Don't worry! Their past visit logs, attendance, and tasks will remain safely stored.
+                     </div>
+                  </div>
+                  <div className="modal-actions mt">
+                     <button className="btn-cancel" onClick={() => setUserToDelete(null)}>Cancel</button>
+                     <button className="primary-btn" style={{ background: '#ef4444' }} onClick={confirmDeleteUser}>Yes, Delete Profile</button>
+                  </div>
+               </div>
+            </div>
+         )}
+
          {/* APP UPDATE OVERLAY (Using User's Premium Card Design) */}
          {newUpdateAvailable && (
             <UpdateOverlay>
@@ -1640,12 +1771,12 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                   <h2>{showAddTaskModal ? (editingTask ? 'Edit Site Log' : 'Log Site Visit') : showAddUserModal ? 'Add New Staff' : 'Edit Profile'}</h2>
                   {showAddTaskModal && (
                      <form onSubmit={handleAddSiteLog}>
-                        <div className="input-group"><label>Customer/Site Name</label><input type="text" value={siteName} onChange={(e) => setSiteName(e.target.value)} required placeholder="Ramesh Residence" /></div>
-                        <div className="input-group mt"><label>Phone Number</label><input type="text" value={sitePhone} onChange={(e) => setSitePhone(e.target.value.replace(/\D/g, '').slice(0, 10))} required placeholder="9876543210" /></div>
-                        <div className="input-group mt"><label>Site Request Overview</label><input type="text" value={siteDesc} onChange={(e) => setSiteDesc(e.target.value)} required placeholder="Need 4 sliding windows" /></div>
+                        <div className="input-group"><label>Customer/Site Name <span style={{color: '#ef4444'}}>*</span></label><input type="text" value={siteName} onChange={(e) => setSiteName(e.target.value)} required placeholder="Ramesh Residence" /></div>
+                        <div className="input-group mt"><label>Phone Number <span style={{color: '#ef4444'}}>*</span></label><input type="text" value={sitePhone} onChange={(e) => setSitePhone(e.target.value.replace(/\D/g, '').slice(0, 10))} required placeholder="9876543210" /></div>
+                        <div className="input-group mt"><label>Site Request Overview <span style={{color: '#ef4444'}}>*</span></label><input type="text" value={siteDesc} onChange={(e) => setSiteDesc(e.target.value)} required placeholder="Need 4 sliding windows" /></div>
                         
                         <div className="input-group mt">
-                           <label style={{ color: '#10b981', fontWeight: 800 }}>📸 Site Photos (Min 3, Max 5)</label>
+                           <label style={{ color: '#10b981', fontWeight: 800 }}>📸 Site Photos (Min 1, Max 5) <span style={{color: '#ef4444'}}>*</span></label>
                            <input type="file" accept="image/*" multiple onChange={handleSitePhotoUpload} />
 
                            
@@ -1666,18 +1797,18 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                               </div>
                            )}
                            <p style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '0.3rem' }}>
-                              * {sitePhotos.length}/5 photos added. {3 - sitePhotos.length > 0 ? `${3 - sitePhotos.length} more required.` : "Requirement met."}
+                              * {sitePhotos.length}/5 photos added. {1 - sitePhotos.length > 0 ? `${1 - sitePhotos.length} more required.` : "Requirement met."} (Limit: 5MB per image)
                            </p>
                            <p style={{ fontSize: '0.7rem', color: '#6b7280' }}>* Location will be automatically captured upon submission.</p>
                         </div>
 
                         <div className="grid-2 mt">
-                           <div className="input-group"><label>Task Created Date (Sync)</label><input type="date" value={taskCreatedDate} onChange={(e) => setTaskCreatedDate(e.target.value)} required /></div>
-                           <div className="input-group"><label>Submission Date</label><input type="date" value={submissionDate} onChange={(e) => setSubmissionDate(e.target.value)} required /></div>
+                           <div className="input-group"><label>Task Created Date (Sync) <span style={{color: '#ef4444'}}>*</span></label><input type="date" value={taskCreatedDate} onChange={(e) => setTaskCreatedDate(e.target.value)} required /></div>
+                           <div className="input-group"><label>Submission Date <span style={{color: '#ef4444'}}>*</span></label><input type="date" value={submissionDate} onChange={(e) => setSubmissionDate(e.target.value)} required /></div>
                         </div>
                         <div className="modal-actions mt">
                            <button type="button" className="btn-cancel" onClick={() => { setShowAddTaskModal(false); setEditingTask(null); setSitePhotos([]); }}>Cancel</button>
-                           <button type="submit" className="btn-submit" disabled={isAddingTask || isCompressing || sitePhotos.length < (editingTask ? 0 : 3)}>
+                           <button type="submit" className="btn-submit" disabled={isAddingTask || isCompressing || sitePhotos.length < (editingTask ? 0 : 1)}>
                               {isAddingTask ? 'Uploading Evidence...' : isCompressing ? 'Optimizing Images...' : (editingTask ? 'Apply Changes' : 'Submit Visit Details')}
                            </button>
                         </div>
@@ -1685,19 +1816,23 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                   )}
 
                   {(showAddUserModal || showEditModal) && (
-                     <form onSubmit={showEditModal ? handleUpdateUser : handleAddUser}>
+                     <form onSubmit={showEditModal ? handleUpdateUser : handleAddUser} autoComplete="off">
+                        {/* Fake inputs to prevent aggressive browser autofill of CEO credentials */}
+                        <input type="text" style={{ display: 'none' }} />
+                        <input type="password" style={{ display: 'none' }} />
+                        
                         <div className="grid-2 mt">
-                           <div className="input-group"><label>Full Name</label><input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} required={!showEditModal} /></div>
-                           <div className="input-group"><label>Phone</label><input type="text" value={newPhone} onChange={(e) => setNewPhone(e.target.value.replace(/\D/g, '').slice(0, 10))} required={!showEditModal} /></div>
+                           <div className="input-group"><label>Full Name {!showEditModal && <span style={{color: '#ef4444'}}>*</span>}</label><input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} required={!showEditModal} /></div>
+                           <div className="input-group"><label>Phone {!showEditModal && <span style={{color: '#ef4444'}}>*</span>}</label><input type="text" value={newPhone} onChange={(e) => setNewPhone(e.target.value.replace(/\D/g, '').slice(0, 10))} required={!showEditModal} /></div>
                            <div className="input-group"><label>Email</label><input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} /></div>
-                           <div className="input-group"><label>Username</label><input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} required readOnly={showEditModal} /></div>
-                           <div className="input-group"><label>Password {showEditModal && '(leave blank to map old)'}</label><input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required={!showEditModal} /></div>
+                           <div className="input-group"><label>Username <span style={{color: '#ef4444'}}>*</span></label><input type="text" name="new-employee-username" autoComplete="new-password" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} required readOnly={showEditModal} /></div>
+                           <div className="input-group"><label>Password {showEditModal && '(leave blank to map old)'} {!showEditModal && <span style={{color: '#ef4444'}}>*</span>}</label><input type="password" name="new-employee-password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required={!showEditModal} /></div>
                            <div className="input-group"><label>Role / Level</label><select value={newRole} onChange={(e) => setNewRole(e.target.value)} disabled={showEditModal && user.role !== 'CEO'}><option value="Employe">Employe</option><option value="Manager">Manager</option><option value="CEO">CEO</option></select></div>
                            <div className="input-group"><label>Gender</label><select value={newGender} onChange={(e) => setNewGender(e.target.value)}><option value="">Select...</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
                            <div className="input-group"><label>Date of Birth</label><input type="date" value={newDob} onChange={(e) => setNewDob(e.target.value)} /></div>
                         </div>
                         <div className="input-group mt"><label>Profile Picture (Max 8MB)</label><input type="file" accept="image/*" onChange={handleImageUpload} />{newProfilePic && <img src={newProfilePic} style={{ marginTop: '10px', height: '60px', width: '60px', borderRadius: '50%', objectFit: 'cover' }} alt="preview" />}</div>
-                        <div className="modal-actions mt"><button type="button" className="btn-cancel" onClick={() => { setShowAddUserModal(false); setShowEditModal(false); clearForm(); }}>Cancel</button><button type="submit" className="btn-submit">{showEditModal ? 'Update Profile' : 'Add Employee'}</button></div>
+                        <div className="modal-actions mt"><button type="button" className="btn-cancel" onClick={() => { setShowAddUserModal(false); setShowEditModal(false); clearForm(); }}>Cancel</button><button type="submit" className="btn-submit" disabled={isSubmittingUser}>{isSubmittingUser ? 'Saving...' : (showEditModal ? 'Update Profile' : 'Add Employee')}</button></div>
                      </form>
                   )}
                </div>
@@ -1710,6 +1845,34 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                title="Remove Activity Log?"
                description="Are you sure you want to permanently delete this task record from the cloud database?"
             />
+         )}
+
+         {taskToCancel && (
+            <div className="modal-overlay" style={{ zIndex: 3000 }}>
+               <div className="modal-card" style={{ maxWidth: '400px' }}>
+                  <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                     <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🛑</div>
+                     <h2 style={{ margin: '0 0 0.5rem 0', color: '#111827' }}>Cancel Visit Log</h2>
+                     <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: '0 0 1rem 0' }}>
+                        Why should you cancel this log?
+                     </p>
+                     <form onSubmit={handleCancelTaskSubmit}>
+                        <textarea 
+                           autoFocus
+                           required
+                           placeholder="Please provide a valid reason..." 
+                           value={cancelReason}
+                           onChange={(e) => setCancelReason(e.target.value)}
+                           style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e5e7eb', minHeight: '80px', fontSize: '0.9rem', resize: 'none' }}
+                        ></textarea>
+                        <div className="modal-actions mt">
+                           <button type="button" className="btn-cancel" onClick={() => { setTaskToCancel(null); setCancelReason(""); }}>Keep Task</button>
+                           <button type="submit" className="primary-btn" style={{ background: '#f59e0b' }}>Confirm Cancel</button>
+                        </div>
+                     </form>
+                  </div>
+               </div>
+            </div>
          )}
       </DLayout>
    );
@@ -1880,11 +2043,12 @@ const Content = styled.div`
   
   .ceo-overview { margin-bottom: 2rem; background: white; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
   .ceo-overview h2 { font-size: 1.1rem; margin-top: 0; color: #111827; }
-  .employee-list { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 0.5rem; padding-top: 1rem;}
-  .staff-pill { display: flex; align-items: center; gap: 0.8rem; background: #f9fafb; padding: 0.5rem 1rem; border-radius: 2rem; cursor: pointer; transition: background 0.2s; position: relative;}
+  .employee-list { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 0.5rem; padding-top: 1rem; scrollbar-width: none;}
+  .employee-list::-webkit-scrollbar, .staff-filter-scroll::-webkit-scrollbar { display: none; }
+  .staff-pill { display: flex; align-items: center; gap: 0.8rem; background: #f9fafb; padding: 0.5rem 1rem; border-radius: 2rem; cursor: pointer; transition: background 0.2s; position: relative; flex-shrink: 0; min-width: max-content;}
   .staff-pill:hover { background: #ecfdf5; }
   .staff-pill img { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
-  .staff-details { display: flex; flex-direction: column; font-size: 0.85rem; }
+  .staff-details { display: flex; flex-direction: column; font-size: 0.85rem; white-space: nowrap; }
   .staff-details strong { color: #1f2937; } .staff-details span { color: #10b981; font-weight: bold; }
 
   .table-section { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
@@ -1894,7 +2058,7 @@ const Content = styled.div`
   .primary-btn:hover { background: #059669; }
   .mt-full { width: 100%; margin-top: 2rem; padding: 0.8rem; }
 
-  .table-responsive { overflow-x: auto; max-height: 280px; overflow-y: auto; border-bottom: 1px solid #f3f4f6; }
+  .table-responsive { overflow-x: auto; border-bottom: 1px solid #f3f4f6; padding-bottom: 2rem; }
   .modern-table thead { position: sticky; top: 0; background: #f9fafb; z-index: 10; box-shadow: 0 2px 4px -2px rgba(0,0,0,0.05); }
   .modern-table { width: 100%; border-collapse: collapse; text-align: left; }
   .modern-table th { background: #f9fafb; color: #6b7280; font-weight: 600; font-size: 0.8rem; padding: 1rem; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; }
@@ -1903,7 +2067,7 @@ const Content = styled.div`
 
   select.status-pill { border: 1px solid #e5e7eb; appearance: auto; outline: none; padding-right: 0.5rem; }
   .status-pill { display: inline-block; padding: 0.3rem 0.6rem; border-radius: 1rem; font-size: 0.75rem; font-weight: 600; cursor: default; text-transform: uppercase; border: none;}
-  .status-pill.pending { background: #fef3c7; color: #92400e; } .status-pill.processing { background: #fef08a; color: #854d0e; } .status-pill.delivered { background: #dcfce7; color: #166534; }
+  .status-pill.pending { background: #fef3c7; color: #92400e; } .status-pill.processing { background: #fef08a; color: #854d0e; } .status-pill.delivered { background: #dcfce7; color: #166534; } .status-pill.cancelled { background: #fee2e2; color: #b91c1c; }
   .empty-state { text-align: center; padding: 3rem !important; color: #9ca3af !important; }
   .p-crown { position: absolute; z-index: 10; font-size: 2rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); animation: float 3s ease-in-out infinite; }
   

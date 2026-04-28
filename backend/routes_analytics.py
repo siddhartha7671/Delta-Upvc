@@ -69,8 +69,9 @@ def get_analytics():
     # 4. Stats Breakdown (Case-Insensitive)
     delivered = len([t for t in all_tasks if str(t.get('status') or '').upper() == 'DELIVERED'])
     processing = len([t for t in all_tasks if str(t.get('status') or '').upper() == 'PROCESSING'])
+    cancelled = len([t for t in all_tasks if str(t.get('status') or '').upper() == 'CANCELLED'])
     # Anything else is considered Pending for the dashboard stats
-    pending = len(all_tasks) - delivered - processing
+    pending = len(all_tasks) - delivered - processing - cancelled
 
     return jsonify({
         "gauge": {
@@ -84,6 +85,7 @@ def get_analytics():
         "breakdown": {
             "delivered": delivered,
             "processing": processing,
+            "cancelled": cancelled,
             "pending": pending,
             "total": len(all_tasks)
         }

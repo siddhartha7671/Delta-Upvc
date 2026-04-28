@@ -64,12 +64,14 @@ def add_user():
     username = data.get('username')
     
     if is_update:
+        if not data.get('password'):
+            data.pop('password', None)
         admins_collection.update_one({"username": username}, {"$set": data})
         log_system_event("USER_UPDATE", f"Profile for {username} updated", "ADMIN")
         return jsonify({"status": "success", "message": "Updated"})
     
     if admins_collection.find_one({"username": username}):
-        return jsonify({"status": "error", "message": "Exists"}), 400
+        return jsonify({"status": "error", "message": "Username already taken."}), 400
         
     data['created_at'] = get_now()
     admins_collection.insert_one(data)
