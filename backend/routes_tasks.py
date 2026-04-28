@@ -28,14 +28,14 @@ def add_task():
     if not data:
         return jsonify({"status": "error", "message": "No data provided"}), 400
     
-    # Enforce minimum 3 photos
+    task_type = data.get('type', 'site_visit')
     photos = data.get('site_photos', [])
-    print(f"DEBUG: Received add_task request from {data.get('assignee')} with {len(photos)} photos")
     
-    if not photos or len(photos) < 3:
-        print(f"DEBUG: Validation Failed. Photos count: {len(photos)}")
-        return jsonify({"status": "error", "message": f"Minimum 3 site photos are mandatory. You provided {len(photos)}."}), 400
-
+    if task_type == 'site_visit':
+        print(f"DEBUG: Received add_task request from {data.get('assignee')} with {len(photos)} photos")
+        if not photos or len(photos) < 1:
+            print(f"DEBUG: Validation Failed. Photos count: {len(photos)}")
+            return jsonify({"status": "error", "message": f"Minimum 1 site photo is mandatory. You provided {len(photos)}."}), 400
 
     data['created_at'] = get_now()
     if 'status' not in data:
