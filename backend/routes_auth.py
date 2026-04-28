@@ -39,17 +39,25 @@ def login():
     data = request.get_json()
     if not data:
         return jsonify({"status": "error", "message": "No credentials provided"}), 400
-    username = data.get('username')
-    password = data.get('password')
-    user = admins_collection.find_one({"username": username, "password": password}, {'_id': 0})
+    import re
+    username = str(data.get('username', '')).strip()
+    password = str(data.get('password', '')).strip()
+    
+    # Case-insensitive match to handle mobile keyboard auto-capitalization
+    user = admins_collection.find_one({
+        "username": {"$regex": f"^{re.escape(username)}$", "$options": "i"}, 
+        "password": password
+    }, {'_id': 0})
+    
     if user:
+        real_username = user.get('username', username)
         login_logs.insert_one({
-            "username": username,
+            "username": real_username,
             "role": user['role'],
             "login_time": get_now(),
             "ip": request.remote_addr
         })
-        return jsonify({"status": "success", "admin": username, "role": user['role']})
+        return jsonify({"status": "success", "admin": real_username, "role": user['role']})
     return jsonify({"status": "error", "message": "Invalid Credentials"}), 401
 
 @auth_bp.route('/admin/users', methods=['GET'])
