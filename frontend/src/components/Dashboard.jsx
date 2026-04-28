@@ -682,14 +682,46 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
    const handleShareTask = async (task) => {
       const customer = (task.deadline || "").split(' - ')[0] || "N/A";
       const phone = (task.deadline || "").split(' - ')[1] || "N/A";
-      const shareText = `*Delta UPVC - Site Visit Log*\n\n*Customer*: ${customer}\n*Phone*: ${phone}\n*Task Details*: ${task.task}\n*Status*: ${task.status}\n*Assigned to*: @${task.assignee}\n*Submission Date*: ${task.submission_date}\n\n*System*: Delta UPVC Enterprise Portal`;
+      const locLink = task.location ? `\n*Location*: https://www.google.com/maps?q=${task.location.lat},${task.location.lng}` : '';
+      const shareText = `*Delta UPVC - Site Visit Log*\n\n*Customer*: ${customer}\n*Phone*: ${phone}\n*Task Details*: ${task.task}\n*Status*: ${task.status}\n*Assigned to*: @${task.assignee}\n*Submission Date*: ${task.submission_date}${locLink}\n\n*System*: Delta UPVC Enterprise Portal`;
+
+      let filesArray = [];
+      const photos = task.site_photos || (task.site_photo ? [task.site_photo] : []);
+      
+      if (photos.length > 0) {
+         try {
+            for (let i = 0; i < photos.length; i++) {
+               const base64Data = photos[i];
+               if (base64Data && base64Data.startsWith('data:image')) {
+                  const arr = base64Data.split(',');
+                  const mime = arr[0].match(/:(.*?);/)[1];
+                  const bstr = atob(arr[1]);
+                  let n = bstr.length;
+                  const u8arr = new Uint8Array(n);
+                  while(n--){
+                     u8arr[n] = bstr.charCodeAt(n);
+                  }
+                  const file = new File([u8arr], `site_photo_${i+1}.jpg`, {type: mime});
+                  filesArray.push(file);
+               }
+            }
+         } catch (e) {
+            console.error("Error processing images for share", e);
+         }
+      }
 
       if (navigator.share) {
          try {
-            await navigator.share({
+            const shareData = {
                title: 'Delta UPVC Visit Log',
                text: shareText
-            });
+            };
+            
+            if (filesArray.length > 0 && navigator.canShare && navigator.canShare({ files: filesArray })) {
+               shareData.files = filesArray;
+            }
+            
+            await navigator.share(shareData);
          } catch (err) {
             console.error("Error sharing", err);
          }
