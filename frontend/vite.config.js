@@ -34,7 +34,7 @@ export default defineConfig({
     host: '0.0.0.0', // Allow access from local network
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
       }

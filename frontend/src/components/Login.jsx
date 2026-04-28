@@ -34,8 +34,8 @@ const Login = ({ onLogin }) => {
     setError("");
 
     const data = {
-      username: e.target.Username.value.trim(),
-      password: e.target.Password.value.trim()
+      username: e.target.Username.value,
+      password: e.target.Password.value
     };
 
     fetch(`${API_BASE_URL}/login`, {
@@ -112,13 +112,13 @@ const Login = ({ onLogin }) => {
 
             <div className="input-field-group">
               <label className="label">Username</label>
-              <input autoComplete="off" autoCapitalize="none" autoCorrect="off" placeholder="e.g. ceo_delta" name="Username" id="Username" className="input" type="text" required />
+              <input autoComplete="off" placeholder="e.g. ceo_delta" name="Username" id="Username" className="input" type="text" required />
             </div>
             
             <div className="input-field-group">
               <label className="label">Password</label>
               <div className="pass-wrapper">
-                <input autoComplete="off" autoCapitalize="none" autoCorrect="off" placeholder="••••••••" name="Password" id="Password" className="input" type={passVisible ? "text" : "password"} required />
+                <input autoComplete="off" placeholder="••••••••" name="Password" id="Password" className="input" type={passVisible ? "text" : "password"} required />
                 <button type="button" className="eye-btn" onClick={() => setPassVisible(!passVisible)}><EyeIcon show={passVisible}/></button>
               </div>
             </div>

@@ -24,7 +24,7 @@ const getApiUrl = () => {
 
     // 4. Default to Local Development (Local Network IP for mobile testing)
     // Switch to PRODUCTION_URL here if you want to test local frontend with live backend
-    return '/api';
+    return `http://${LOCAL_IP}:8080/api`;
 };
 
 export const API_BASE_URL = getApiUrl();
