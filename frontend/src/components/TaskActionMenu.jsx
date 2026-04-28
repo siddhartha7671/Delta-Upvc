@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 
-const TaskActionMenu = ({ onEdit, onDelete, onCancel, onClose }) => {
+const TaskActionMenu = ({ onEdit, onDelete, onCancel, onShare, onClose }) => {
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -18,6 +18,10 @@ const TaskActionMenu = ({ onEdit, onDelete, onCancel, onClose }) => {
     <StyledWrapper ref={menuRef}>
       <div className="card">
         <ul className="list">
+          <li className="element" onClick={() => { onShare(); onClose(); }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7e8590" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            <p className="label">Share Log</p>
+          </li>
           <li className="element" onClick={() => { onEdit(); onClose(); }}>
             <svg className="lucide lucide-pencil" strokeLinejoin="round" strokeLinecap="round" strokeWidth={2} stroke="#7e8590" fill="none" viewBox="0 0 24 24" height={25} width={25} xmlns="http://www.w3.org/2000/svg">
               <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />

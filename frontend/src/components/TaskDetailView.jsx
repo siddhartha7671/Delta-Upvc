@@ -26,6 +26,26 @@ const TaskDetailView = ({ task, onBack }) => {
 
   const currentIndex = getStatusIndex(task.status);
 
+  const handleShare = async () => {
+    const customer = (task.deadline || "").split(' - ')[0] || "N/A";
+    const phone = (task.deadline || "").split(' - ')[1] || "N/A";
+    const shareText = `*Delta UPVC - Site Visit Log*\n\n*Customer*: ${customer}\n*Phone*: ${phone}\n*Task Details*: ${task.task}\n*Status*: ${task.status}\n*Assigned to*: @${task.assignee}\n*Submission Date*: ${task.submission_date}\n\n*System*: Delta UPVC Enterprise Portal`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Delta UPVC Visit Log',
+          text: shareText
+        });
+      } catch (err) {
+        console.error("Error sharing", err);
+      }
+    } else {
+      navigator.clipboard.writeText(shareText);
+      alert("Log details copied to clipboard!");
+    }
+  };
+
   return (
     <Container>
       <header className="detail-header">
@@ -34,6 +54,10 @@ const TaskDetailView = ({ task, onBack }) => {
           Back to list
         </button>
         <h1>Task Activity Detail</h1>
+        <button className="share-btn" onClick={handleShare} style={{ marginLeft: 'auto' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Share Log
+        </button>
       </header>
 
       <ContentGrid>
@@ -185,6 +209,21 @@ const Container = styled.div`
       font-weight: 600;
       transition: all 0.2s;
       &:hover { background: #059669; }
+    }
+    
+    .share-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #f3f4f6;
+      color: #111827;
+      border: 1px solid #e5e7eb;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+      &:hover { background: #e5e7eb; }
     }
   }
 `;

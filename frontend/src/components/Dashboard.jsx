@@ -679,6 +679,25 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
        setShowAddTaskModal(true);
     };
 
+   const handleShareTask = async (task) => {
+      const customer = (task.deadline || "").split(' - ')[0] || "N/A";
+      const phone = (task.deadline || "").split(' - ')[1] || "N/A";
+      const shareText = `*Delta UPVC - Site Visit Log*\n\n*Customer*: ${customer}\n*Phone*: ${phone}\n*Task Details*: ${task.task}\n*Status*: ${task.status}\n*Assigned to*: @${task.assignee}\n*Submission Date*: ${task.submission_date}\n\n*System*: Delta UPVC Enterprise Portal`;
+
+      if (navigator.share) {
+         try {
+            await navigator.share({
+               title: 'Delta UPVC Visit Log',
+               text: shareText
+            });
+         } catch (err) {
+            console.error("Error sharing", err);
+         }
+      } else {
+         navigator.clipboard.writeText(shareText);
+         showToast("Copied", "Log details copied to clipboard!");
+      }
+   };
 
    const handleDeleteTask = (taskId) => {
       setItemToDelete(taskId);
@@ -1244,6 +1263,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                                     onEdit={() => handleEditTaskInit(t)}
                                     onDelete={() => handleDeleteTask(t._id)}
                                     onCancel={() => setTaskToCancel(t)}
+                                    onShare={() => handleShareTask(t)}
                                     onClose={() => setActiveTaskMenu(null)}
                                  />
                                )}
@@ -1389,6 +1409,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                                     onEdit={() => handleEditTaskInit(t)}
                                     onDelete={() => handleDeleteTask(t._id)}
                                     onCancel={() => setTaskToCancel(t)}
+                                    onShare={() => handleShareTask(t)}
                                     onClose={() => setActiveTaskMenu(null)}
                                  />
                                )}
@@ -1707,6 +1728,7 @@ const Dashboard = ({ user, onLogout, onHomeNav }) => {
                                                          onEdit={() => handleEditTaskInit(t)}
                                                          onDelete={() => handleDeleteTask(t._id)}
                                                           onCancel={() => setTaskToCancel(t)}
+                                                         onShare={() => handleShareTask(t)}
                                                          onClose={() => setActiveTaskMenu(null)}
                                                       />
                                                    )}

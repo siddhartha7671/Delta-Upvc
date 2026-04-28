@@ -1,7 +1,7 @@
 // Central API Configuration for high-fidelity global access
 // When deploying to Vercel, the production URL is automatically prioritized.
 
-const LOCAL_IP = '192.168.1.93'; // Your developer PC's local network IP
+const LOCAL_IP = '192.168.29.192'; // Your developer PC's local network IP
 
 // Detection logic for Vercel vs Local Development
 const getApiUrl = () => {
